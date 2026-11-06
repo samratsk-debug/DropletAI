@@ -4,6 +4,7 @@ import { INITIAL_BRANDS, INITIAL_GUIDELINES, INITIAL_TEAM, INITIAL_CONTENTS } fr
 
 interface AppContextType {
   brands: EnterpriseBrand[];
+  addBrand: (brand: EnterpriseBrand) => void;
   selectedBrandId: string;
   setSelectedBrandId: (id: string) => void;
   selectedBrand: EnterpriseBrand;
@@ -16,6 +17,7 @@ interface AppContextType {
   addContent: (content: ContentItem) => void;
   updateContentStatus: (id: string, status: ContentItem['status'], note?: string) => void;
   updateContentIssueStatus: (contentId: string, issueId: string, status: 'accepted' | 'rejected' | 'modified', newFix?: string) => void;
+  updateCurrentUser: (updates: Partial<TeamMember>) => void;
   currentUser: TeamMember;
   setCurrentUser: (user: TeamMember) => void;
   isAuthenticated: boolean;
@@ -25,7 +27,7 @@ interface AppContextType {
 const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [brands] = useState<EnterpriseBrand[]>(() => {
+  const [brands, setBrands] = useState<EnterpriseBrand[]>(() => {
     const saved = localStorage.getItem('droplet_brands');
     return saved ? JSON.parse(saved) : INITIAL_BRANDS;
   });
@@ -90,6 +92,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const selectedBrand = brands.find(b => b.id === selectedBrandId) || brands[0];
 
+  const addBrand = (brand: EnterpriseBrand) => {
+    setBrands(prev => [brand, ...prev]);
+  };
+
   const updateGuidelines = (updater: (prev: BrandGuidelines) => BrandGuidelines) => {
     setGuidelines(updater);
   };
@@ -148,12 +154,12 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (m.name === authorName) {
           let delta = 0;
           if (status === 'Approved') delta = +4;
-          if (status === 'Rejected') delta = -8;
-          if (status === 'Changes Requested') delta = -3;
-          const updatedScore = Math.min(100, Math.max(40, (m.personalComplianceScore || 85) + delta));
+          if (status === 'Rejected') delta = -12;
+          if (status === 'Changes Requested') delta = -6;
+          const updatedScore = Math.min(100, Math.max(30, (m.personalComplianceScore || 85) + delta));
           const updatedHistory = [
             ...(m.historyScores || []),
-            { date: 'Review', score: updatedScore, label: `${status} sign-off` }
+            { date: 'Review', score: updatedScore, label: `${status}` }
           ];
           return {
             ...m,
@@ -190,9 +196,16 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }));
   };
 
+  const updateCurrentUser = (updates: Partial<TeamMember>) => {
+    const updated = { ...currentUser, ...updates };
+    setCurrentUser(updated);
+    setTeam(prev => prev.map(m => m.id === updated.id ? updated : m));
+  };
+
   return (
     <AppContext.Provider value={{
       brands,
+      addBrand,
       selectedBrandId,
       setSelectedBrandId,
       selectedBrand,
@@ -205,6 +218,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addContent,
       updateContentStatus,
       updateContentIssueStatus,
+      updateCurrentUser,
       currentUser,
       setCurrentUser,
       isAuthenticated,

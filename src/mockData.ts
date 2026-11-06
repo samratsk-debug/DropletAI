@@ -1,10 +1,54 @@
 import { BrandGuidelines, TeamMember, ContentItem, EnterpriseBrand } from './types';
 
 export const INITIAL_BRANDS: EnterpriseBrand[] = [
-  { id: 'b-1', slug: 'droplet-core-hardware', name: 'Droplet Core Hardware', complianceRate: 94.5, activeAuditsCount: 12, riskLevel: 'Low', lastSync: '2026-11-04 14:30', departmentCount: 5 },
-  { id: 'b-2', slug: 'droplet-enterprise-cloud', name: 'Droplet Enterprise Cloud', complianceRate: 88.2, activeAuditsCount: 8, riskLevel: 'Medium', lastSync: '2026-11-04 12:15', departmentCount: 3 },
-  { id: 'b-3', slug: 'droplet-mobile-os', name: 'Droplet Mobile OS', complianceRate: 91.8, activeAuditsCount: 15, riskLevel: 'Low', lastSync: '2026-11-04 11:00', departmentCount: 4 },
-  { id: 'b-4', slug: 'droplet-audio-labs', name: 'Droplet Audio Labs', complianceRate: 79.4, activeAuditsCount: 6, riskLevel: 'High', lastSync: '2026-11-03 18:45', departmentCount: 2 },
+  {
+    id: 'b-1',
+    slug: 'droplet-core-hardware',
+    name: 'Droplet Core Hardware',
+    logo: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80',
+    complianceRate: 94.5,
+    activeAuditsCount: 12,
+    riskLevel: 'Low',
+    lastSync: '2026-11-05 09:30',
+    departmentCount: 5,
+    description: 'Flagship consumer acoustic devices, smart wearables, and audio hardware.'
+  },
+  {
+    id: 'b-2',
+    slug: 'droplet-enterprise-cloud',
+    name: 'Droplet Enterprise Cloud',
+    logo: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=200&auto=format&fit=crop&q=80',
+    complianceRate: 88.2,
+    activeAuditsCount: 8,
+    riskLevel: 'Medium',
+    lastSync: '2026-11-05 08:15',
+    departmentCount: 3,
+    description: 'Distributed cloud infrastructure, zero-latency microservices, and storage vaults.'
+  },
+  {
+    id: 'b-3',
+    slug: 'droplet-mobile-os',
+    name: 'Droplet Mobile OS',
+    logo: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=200&auto=format&fit=crop&q=80',
+    complianceRate: 91.8,
+    activeAuditsCount: 15,
+    riskLevel: 'Low',
+    lastSync: '2026-11-04 17:00',
+    departmentCount: 4,
+    description: 'Mobile operating systems, tactile user interfaces, and mobile developer kits.'
+  },
+  {
+    id: 'b-4',
+    slug: 'droplet-audio-labs',
+    name: 'Droplet Audio Labs',
+    logo: 'https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=200&auto=format&fit=crop&q=80',
+    complianceRate: 79.4,
+    activeAuditsCount: 6,
+    riskLevel: 'High',
+    lastSync: '2026-11-04 14:45',
+    departmentCount: 2,
+    description: 'Spatial audio DSP engineering, transducer acoustics, and microphone arrays.'
+  },
 ];
 
 export const INITIAL_GUIDELINES: BrandGuidelines = {
@@ -43,9 +87,9 @@ export const INITIAL_GUIDELINES: BrandGuidelines = {
     guidelinesText: 'Maintain an authoritative yet approachable enterprise tone. Avoid slang, over-promising superlatives, and informal greetings in external marketing collateral.',
   },
   visualAssets: [
-    { id: 'va-1', name: 'Droplet Master Logotype (Dark)', type: 'logo', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80', minClearancePx: 24 },
-    { id: 'va-2', name: 'Droplet Icon Glyph (Cyan)', type: 'icon', url: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=80', minClearancePx: 16 },
-    { id: 'va-3', name: 'Product Banner Grid', type: 'banner', url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80', minClearancePx: 32 },
+    { id: 'va-1', name: 'Droplet Master Logotype', type: 'logo', url: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=400&auto=format&fit=crop&q=80', minClearancePx: 24, usageGuidelines: 'Maintain 24px safety perimeter. Do not distort proportions.' },
+    { id: 'va-2', name: 'Droplet Icon Glyph', type: 'icon', url: 'https://images.unsplash.com/photo-1634017839464-5c339ebe3cb4?w=400&auto=format&fit=crop&q=80', minClearancePx: 16, usageGuidelines: 'Use for app icons, favicon, and compact avatars.' },
+    { id: 'va-3', name: 'Product Banner Grid', type: 'banner', url: 'https://images.unsplash.com/photo-1550745165-9bc0b252726f?w=600&auto=format&fit=crop&q=80', minClearancePx: 32, usageGuidelines: 'Minimum 300 DPI for print and 2x pixel density for web.' },
   ],
   colorPalette: [
     { id: 'c-1', name: 'Droplet Slate', hex: '#0f172a', type: 'solid', role: 'background' },
@@ -66,6 +110,7 @@ export const INITIAL_TEAM: TeamMember[] = [
     department: 'Executive Governance',
     status: 'active',
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
+    assignedBrandIds: ['b-1', 'b-2', 'b-3', 'b-4'],
     personalComplianceScore: 98,
     historyScores: [
       { date: 'Oct 1', score: 94, label: 'Policy Review' },
@@ -82,6 +127,7 @@ export const INITIAL_TEAM: TeamMember[] = [
     department: 'Global Marketing',
     status: 'active',
     avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=150&auto=format&fit=crop&q=80',
+    assignedBrandIds: ['b-1', 'b-2'],
     personalComplianceScore: 89,
     historyScores: [
       { date: 'Oct 1', score: 82, label: 'Whitepaper 1' },
@@ -98,6 +144,7 @@ export const INITIAL_TEAM: TeamMember[] = [
     department: 'Copywriting',
     status: 'active',
     avatar: 'https://images.unsplash.com/photo-1494790108377-be9c29b29330?w=150&auto=format&fit=crop&q=80',
+    assignedBrandIds: ['b-1'],
     personalComplianceScore: 84,
     historyScores: [
       { date: 'Oct 5', score: 76, label: 'Initial Blog' },
@@ -114,6 +161,7 @@ export const INITIAL_TEAM: TeamMember[] = [
     department: 'Visual Design',
     status: 'active',
     avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?w=150&auto=format&fit=crop&q=80',
+    assignedBrandIds: ['b-1', 'b-3'],
     personalComplianceScore: 92,
     historyScores: [
       { date: 'Oct 8', score: 88, label: 'Banner Set A' },
@@ -130,6 +178,7 @@ export const INITIAL_TEAM: TeamMember[] = [
     department: 'Legal & Compliance',
     status: 'active',
     avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=150&auto=format&fit=crop&q=80',
+    assignedBrandIds: ['b-1', 'b-2'],
     personalComplianceScore: 97,
     historyScores: [
       { date: 'Oct 2', score: 95, label: 'Regulatory' },

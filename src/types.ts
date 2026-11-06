@@ -29,6 +29,7 @@ export interface BrandGuidelines {
     type: 'logo' | 'banner' | 'icon' | 'typography';
     url: string;
     minClearancePx: number;
+    usageGuidelines?: string;
   }[];
   colorPalette: {
     id: string;
@@ -50,6 +51,7 @@ export interface TeamMember {
   department: string;
   status: 'active' | 'invited' | 'suspended';
   avatar: string;
+  assignedBrandIds?: string[];
   personalComplianceScore?: number;
   historyScores?: { date: string; score: number; label: string }[];
 }
@@ -94,9 +96,18 @@ export interface EnterpriseBrand {
   id: string;
   slug: string;
   name: string;
+  logo: string;
   complianceRate: number;
   activeAuditsCount: number;
   riskLevel: 'Low' | 'Medium' | 'High';
   lastSync: string;
   departmentCount: number;
+  description?: string;
+}
+
+export interface ChatMessage {
+  id: string;
+  sender: 'user' | 'assistant';
+  text: string;
+  timestamp: string;
 }
