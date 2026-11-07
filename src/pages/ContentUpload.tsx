@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UploadCloud, FileText, Image as ImageIcon, Sparkles, CheckCircle, AlertTriangle, ArrowRight } from 'lucide-react';
+import { UploadCloud, Image as ImageIcon, Sparkles, ArrowRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
-import { ContentItem, AuditIssue } from '../types';
+import { ContentItem } from '../types';
+import { ApiError, api } from '../api';
 
 export const ContentUpload: React.FC = () => {
-  const { brands, selectedBrandId, addContent, currentUser } = useApp();
+  const { brands, selectedBrandId, addContent, currentUser, organisationId } = useApp();
   const navigate = useNavigate();
 
   const [title, setTitle] = useState('');
@@ -13,69 +14,85 @@ export const ContentUpload: React.FC = () => {
   const [contentBody, setContentBody] = useState('');
   const [isDragging, setIsDragging] = useState(false);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
-  const [previewImage, setPreviewImage] = useState<string>('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80');
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [uploadMessage, setUploadMessage] = useState('');
+  const [formError, setFormError] = useState('');
+  const [previewImage] = useState<string>('https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=600&auto=format&fit=crop&q=80');
 
-  const handleRunAudit = (e: React.FormEvent) => {
+  const handleRunAudit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title || !contentBody) return;
-
+    setFormError('');
+    if (!selectedBrandId) {
+      setFormError('Create a brand before submitting content for review.');
+      return;
+    }
     setIsAnalyzing(true);
-
-    setTimeout(() => {
-      setIsAnalyzing(false);
-
-      // Simulated Gemini AI + Rule-based generated issues
-      const generatedIssues: AuditIssue[] = [
-        {
-          id: 'iss-' + Date.now() + '-1',
-          category: 'Unsupported Claims',
-          severity: 'high',
-          title: 'Unverified Performance Claim detected',
-          description: 'Content claims unverified battery or processing capabilities exceeding official product specifications.',
-          sourcePassage: 'Verified Baseline Metric: Standard specification limits',
-          suggestedFix: 'Align claim with official specification guidelines.',
-          status: 'pending'
-        },
-        {
-          id: 'iss-' + Date.now() + '-2',
-          category: 'Tone Mismatches',
-          severity: 'medium',
-          title: 'Stylistic tone deviation',
-          description: 'Enthusiasm or formality level deviates from brand calibration targets.',
-          sourcePassage: 'Tone Guidelines: Authoritative enterprise tone required.',
-          suggestedFix: 'Refine phrasing to match professional enterprise standard.',
-          status: 'pending'
-        }
-      ];
-
-      const newContent: ContentItem = {
-        id: 'audit-' + Math.floor(1000 + Math.random() * 9000),
-        title,
-        type: contentType,
-        brandId: selectedBrandId,
-        brandName: brands.find(b => b.id === selectedBrandId)?.name || 'Droplet Core Hardware',
-        author: currentUser.name,
-        department: currentUser.department,
-        createdAt: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }),
-        status: 'Pending Review',
-        complianceScore: 81,
-        contentBody,
-        imageUrl: previewImage,
-        issues: generatedIssues,
-        revisionHistory: [
-          {
-            id: 'rev-' + Date.now(),
-            timestamp: new Date().toLocaleString([], { dateStyle: 'short', timeStyle: 'short' }),
-            author: currentUser.name,
-            action: 'Submitted for AI Brand Audit',
-            note: 'Automated Gemini API scan completed.'
-          }
-        ]
+    try {
+      const contentTypeToApi: Record<ContentItem['type'], string> = {
+        document: 'MARKETING_COPY', ad: 'AD', text: 'MARKETING_COPY', banner: 'AD', social: 'SOCIAL_MEDIA'
       };
-
+      const submission = await api.createSubmission(organisationId, {
+        brandId: selectedBrandId,
+        title,
+        contentType: contentTypeToApi[contentType],
+        content: contentBody
+      });
+      const issueLines = submission.analysisReport?.issuesJson && !submission.analysisReport.issuesJson.startsWith('No major')
+        ? submission.analysisReport.issuesJson.split(/\r?\n/).map(line => line.replace(/^\s*-\s*/, '').trim()).filter(Boolean)
+        : [];
+      const score = Math.max(0, 100 - (submission.analysisReport?.riskScore ?? 0));
+      const newContent: ContentItem = {
+        id: submission.id,
+        title: submission.title,
+        type: contentType,
+        brandId: submission.brandId,
+        brandName: submission.brandName,
+        author: submission.submittedByEmail,
+        authorEmail: submission.submittedByEmail,
+        department: currentUser.department,
+        createdAt: submission.createdAt,
+        status: 'Pending Review',
+        complianceScore: score,
+        contentBody: submission.content,
+        imageUrl: previewImage,
+        issues: issueLines.map((line, index) => ({
+          id: `${submission.id}-issue-${index}`,
+          category: 'Unsupported Claims',
+          severity: submission.analysisReport?.riskCategory === 'HIGH' || submission.analysisReport?.riskCategory === 'CRITICAL' ? 'high' : 'medium',
+          title: `Finding ${index + 1}`,
+          description: line,
+          suggestedFix: submission.analysisReport?.aiRecommendations || 'Review against approved brand guidance.',
+          status: 'pending'
+        })),
+        revisionHistory: [{
+          id: `${submission.id}-submitted`,
+          timestamp: submission.createdAt,
+          author: currentUser.name,
+          action: 'Submitted for AI Brand Audit',
+          note: submission.analysisReport?.summary || 'Analysis complete.'
+        }]
+      };
       addContent(newContent);
       navigate(`/audit/${newContent.id}`);
-    }, 2000);
+    } catch (error) {
+      setFormError(error instanceof ApiError ? error.message : 'Could not submit the content.');
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
+  const uploadSelectedFile = async (file?: File) => {
+    if (!file) return;
+    setSelectedFile(file);
+    setUploadMessage('Uploading document…');
+    setFormError('');
+    try {
+      await api.uploadDocument(organisationId, file, selectedBrandId || undefined);
+      setUploadMessage(`${file.name} uploaded and added to brand knowledge.`);
+    } catch (error) {
+      setUploadMessage('');
+      setFormError(error instanceof ApiError ? error.message : 'Could not upload the document.');
+    }
   };
 
   return (
@@ -99,8 +116,8 @@ export const ContentUpload: React.FC = () => {
             <Sparkles className="w-8 h-8" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-xl font-bold text-white">Running Google Gemini AI Contextual Audit...</h2>
-            <p className="text-xs text-slate-400 max-w-md mx-auto">Cross-referencing terminology rules, verified product specs, tone calibration, and OCR visual elements.</p>
+          <h2 className="text-xl font-bold text-white">Running AI contextual audit…</h2>
+          <p className="text-xs text-slate-400 max-w-md mx-auto">The backend is checking this content against the selected brand&apos;s saved guidance and knowledge.</p>
           </div>
           <div className="w-48 h-1.5 bg-slate-800 mx-auto rounded-full overflow-hidden">
             <div className="bg-indigo-500 h-full w-2/3 animate-pulse" />
@@ -108,6 +125,7 @@ export const ContentUpload: React.FC = () => {
         </div>
       ) : (
         <form onSubmit={handleRunAudit} className="space-y-6">
+          {formError && <p role="alert" className="rounded-xl bg-rose-950/50 border border-rose-700 px-4 py-3 text-xs text-rose-200">{formError}</p>}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="md:col-span-2 space-y-6">
               <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 space-y-4">
@@ -177,7 +195,7 @@ export const ContentUpload: React.FC = () => {
                 <div
                   onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
                   onDragLeave={() => setIsDragging(false)}
-                  onDrop={(e) => { e.preventDefault(); setIsDragging(false); }}
+                  onDrop={(e) => { e.preventDefault(); setIsDragging(false); void uploadSelectedFile(e.dataTransfer.files[0]); }}
                   className={`border-2 border-dashed rounded-2xl p-6 text-center transition ${
                     isDragging ? 'border-indigo-500 bg-indigo-500/10' : 'border-slate-700 bg-slate-950'
                   }`}
@@ -187,8 +205,10 @@ export const ContentUpload: React.FC = () => {
                   <p className="text-[11px] text-slate-400 mb-4">PNG, JPG, PDF, or DOCX up to 50MB</p>
                   <label className="px-3.5 py-2 bg-slate-800 hover:bg-slate-700 text-indigo-400 rounded-xl text-xs font-medium transition cursor-pointer border border-slate-700 inline-block select-none">
                     Browse File
-                    <input type="file" className="hidden" onChange={() => {}} />
+                    <input type="file" accept=".pdf,.doc,.docx,.txt,.png,.jpg,.jpeg" className="hidden" onChange={(e) => void uploadSelectedFile(e.target.files?.[0])} />
                   </label>
+                  {uploadMessage && <p className="mt-3 text-[11px] text-emerald-300">{uploadMessage}</p>}
+                  {selectedFile && <p className="mt-1 text-[11px] text-slate-400">Selected: {selectedFile.name}</p>}
                 </div>
 
                 <div className="bg-slate-950 p-3 rounded-xl border border-slate-800">

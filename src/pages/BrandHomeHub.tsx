@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ShieldCheck, Building2, Plus, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { Building2, Plus, ArrowRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { EnterpriseBrand } from '../types';
+import { ApiError } from '../api';
 
 export const BrandHomeHub: React.FC = () => {
   const { brands, addBrand, setSelectedBrandId, currentUser } = useApp();
@@ -11,23 +12,24 @@ export const BrandHomeHub: React.FC = () => {
   const [showAddBrandModal, setShowAddBrandModal] = useState(false);
   const [brandName, setBrandName] = useState('');
   const [brandDescription, setBrandDescription] = useState('');
-  const [brandLogoUrl, setBrandLogoUrl] = useState('https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=200&auto=format&fit=crop&q=80');
+  const [formError, setFormError] = useState('');
 
   const isOwner = currentUser.role === 'Brand Owner / Admin';
 
   // For employees, show only assigned brands (or all if not restricted)
-  const displayedBrands = isOwner ? brands : brands.filter(b => currentUser.assignedBrandIds?.includes(b.id) || true);
+  const displayedBrands = isOwner ? brands : brands.filter(b => currentUser.assignedBrandIds?.includes(b.id));
 
-  const handleCreateBrand = (e: React.FormEvent) => {
+  const handleCreateBrand = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!brandName) return;
+    setFormError('');
 
     const slug = brandName.toLowerCase().replace(/[^a-z0-9]+/g, '-');
     const newBrand: EnterpriseBrand = {
       id: 'b-' + Date.now(),
       slug,
       name: brandName,
-      logo: brandLogoUrl,
+      logo: '',
       complianceRate: 92.0,
       activeAuditsCount: 4,
       riskLevel: 'Low',
@@ -36,10 +38,14 @@ export const BrandHomeHub: React.FC = () => {
       description: brandDescription || 'Enterprise sub-brand governance repository.'
     };
 
-    addBrand(newBrand);
-    setSelectedBrandId(newBrand.id);
-    setShowAddBrandModal(false);
-    navigate(`/${slug}/BrandGuidelines`);
+    try {
+      const created = await addBrand(newBrand);
+      setSelectedBrandId(created.id);
+      setShowAddBrandModal(false);
+      navigate(`/${created.slug}/BrandGuidelines`);
+    } catch (error) {
+      setFormError(error instanceof ApiError ? error.message : 'Could not create the brand.');
+    }
   };
 
   return (
@@ -52,8 +58,8 @@ export const BrandHomeHub: React.FC = () => {
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Enterprise Brand Hub</h1>
-              <p className="text-xs text-slate-500 mt-0.5">Select a brand workspace or manage your authorized portfolio repositories.</p>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{brands.length ? 'Enterprise Brand Hub' : 'Set up your first brand'}</h1>
+              <p className="text-xs text-slate-500 mt-0.5">{brands.length ? 'Select a brand workspace or manage your authorized portfolio repositories.' : 'Your account is ready. Create a brand workspace to start using Droplet AI.'}</p>
             </div>
           </div>
         </div>
@@ -73,7 +79,7 @@ export const BrandHomeHub: React.FC = () => {
       </div>
 
       {/* Brands Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      {displayedBrands.length > 0 && <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {displayedBrands.map((brand) => (
           <div
             key={brand.id}
@@ -121,7 +127,9 @@ export const BrandHomeHub: React.FC = () => {
             </div>
           </div>
         ))}
-      </div>
+      </div>}
+        {displayedBrands.length === 0 && isOwner && <div className="rounded-2xl border border-indigo-200 bg-indigo-50 p-6 text-sm text-indigo-900">Create your first brand workspace to continue to brand guidelines and content review.</div>}
+        {displayedBrands.length === 0 && !isOwner && <div className="rounded-2xl border border-amber-200 bg-amber-50 p-6 text-sm text-amber-900">No brand workspace has been assigned to your account yet. Ask your organisation owner to add you to a brand.</div>}
 
       {/* Add Brand Modal */}
       {showAddBrandModal && (
@@ -133,6 +141,7 @@ export const BrandHomeHub: React.FC = () => {
             </div>
 
             <form onSubmit={handleCreateBrand} className="space-y-4">
+              {formError && <p role="alert" className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">{formError}</p>}
               <div>
                 <label className="block text-xs font-medium text-slate-700 mb-1">Brand Name</label>
                 <input
@@ -153,20 +162,6 @@ export const BrandHomeHub: React.FC = () => {
                   onChange={(e) => setBrandDescription(e.target.value)}
                   placeholder="Brief description of brand product vertical..."
                   className="w-full bg-gray-50 border border-gray-300 rounded-xl p-3 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-medium text-slate-700 mb-1">Brand Logo Image Upload</label>
-                <input
-                  type="file"
-                  accept="image/*"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      setBrandLogoUrl(URL.createObjectURL(e.target.files[0]));
-                    }
-                  }}
-                  className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-xs text-slate-700 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-900 file:text-white cursor-pointer"
                 />
               </div>
 

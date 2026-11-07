@@ -7,15 +7,15 @@ import {
   ArrowLeft,
   Sparkles,
   FileText,
-  Check,
-  Trash2
+  Check
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { ApiError } from '../api';
 
 export const ContentAuditReport: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { contents, updateContentIssueStatus, updateContentStatus, selectedBrand } = useApp();
+  const { contents, updateContentStatus, selectedBrand } = useApp();
 
   const content = contents.find(c => c.id === id) || contents[0];
   const [activeTab, setActiveTab] = useState<'split' | 'issues' | 'history'>('split');
@@ -23,25 +23,20 @@ export const ContentAuditReport: React.FC = () => {
   const [rejectNote, setRejectNote] = useState('Violates verified specification limits and terminology guidelines.');
   const [toast, setToast] = useState<string | null>(null);
 
+  if (!content) return <div className="max-w-3xl mx-auto p-8 text-center text-slate-600">This audit is not available in the loaded workspace.</div>;
+
   const showToast = (msg: string) => {
     setToast(msg);
     setTimeout(() => setToast(null), 3000);
   };
 
-  const handleAcceptFix = (issueId: string, suggestedFix: string) => {
-    updateContentIssueStatus(content.id, issueId, 'accepted', suggestedFix);
-    showToast('AI recommended fix accepted & applied to collateral');
-  };
-
-  const handleRejectFix = (issueId: string) => {
-    updateContentIssueStatus(content.id, issueId, 'rejected');
-    showToast('Audit flag dismissed');
-  };
-
   const handleSignOff = (status: 'Approved' | 'Changes Requested' | 'Rejected', note?: string) => {
-    updateContentStatus(content.id, status, note || `Review sign-off by reviewer: ${status}`);
-    showToast(`Collateral status updated to ${status}`);
-    setShowRejectModal(false);
+    void updateContentStatus(content.id, status, note || `Review sign-off by reviewer: ${status}`)
+      .then(() => {
+        showToast(`Collateral status updated to ${status}`);
+        setShowRejectModal(false);
+      })
+      .catch(error => showToast(error instanceof ApiError ? error.message : 'Could not update review status.'));
   };
 
   return (
@@ -201,25 +196,9 @@ export const ContentAuditReport: React.FC = () => {
                     <span className="text-[10px] uppercase font-bold text-indigo-700 block">AI Recommended Correction:</span>
                     <p className="text-xs text-indigo-900 font-mono">{issue.suggestedFix}</p>
 
-                    {issue.status === 'pending' && (
-                      <div className="flex space-x-2 pt-2">
-                        <button
-                          type="button"
-                          onClick={() => handleAcceptFix(issue.id, issue.suggestedFix)}
-                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-700 text-white rounded-lg text-xs font-semibold transition flex items-center space-x-1 select-none"
-                        >
-                          <Check className="w-3.5 h-3.5" />
-                          <span>Accept Correction</span>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleRejectFix(issue.id)}
-                          className="px-3 py-1.5 bg-gray-200 hover:bg-gray-300 text-slate-700 rounded-lg text-xs font-semibold transition select-none"
-                        >
-                          Dismiss
-                        </button>
-                      </div>
-                    )}
+                  {issue.status === 'pending' && (
+                    <p className="pt-2 text-[11px] text-slate-500">Per-finding accept and dismiss actions are not supported by the connected review API.</p>
+                  )}
                   </div>
                 </div>
               ))}

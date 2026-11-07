@@ -60,15 +60,15 @@ export const Navbar: React.FC = () => {
   ];
 
   const employeeNavItems = isOwner ? [] : [
-    { to: `/${selectedBrand.slug}/EmployeeWorkspace`, label: 'Upload & Audit', icon: UploadCloud, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/Upload`, label: 'Upload & Audit', icon: UploadCloud, ownerOnly: false },
     { to: `/${selectedBrand.slug}/MyPerformance`, label: 'My Performance', icon: Sparkles, ownerOnly: false },
   ];
 
-  const allNavs = [
+  const allNavs = selectedBrand.id ? [
     baseNavItems[0], // Home
     ...employeeNavItems,
     ...baseNavItems.slice(1).filter(item => isOwner || !item.ownerOnly)
-  ];
+  ] : [baseNavItems[0]];
 
   const handleSendChatMessage = (e: React.FormEvent) => {
     e.preventDefault();

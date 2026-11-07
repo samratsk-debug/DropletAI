@@ -1,79 +1,81 @@
 import React, { useState } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { ShieldCheck, Mail, Lock, Eye, EyeOff, ArrowRight, CheckCircle2 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { ShieldCheck, Mail, Lock, Eye, EyeOff, ArrowRight } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { ApiError, api, saveAuthSession } from '../api';
 
 export const LoginRegisterAuth: React.FC<{ initialMode?: 'login' | 'register' }> = ({ initialMode = 'login' }) => {
   const [isLogin, setIsLogin] = useState<boolean>(initialMode === 'login');
-  const [email, setEmail] = useState('victoria.v@droplet.ai');
-  const [password, setPassword] = useState('SecurePass123!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [fullName, setFullName] = useState('Victoria Vance');
-  const [roleType, setRoleType] = useState<'Brand Owner / Admin' | 'Content Creator'>('Brand Owner / Admin');
+  const [fullName, setFullName] = useState('');
+  const [organisationName, setOrganisationName] = useState('');
+  const [authError, setAuthError] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // OTP Verification state for register flow
-  const [step, setStep] = useState<'form' | 'otp'>('form');
-  const [otpCode, setOtpCode] = useState(['1', '2', '3', '4', '5', '6']);
-  const [resendTimer] = useState(45);
-
-  const { setIsAuthenticated, selectedBrand, team, setCurrentUser } = useApp();
+  const { setIsAuthenticated, setCurrentUser, setSelectedBrandId } = useApp();
   const navigate = useNavigate();
-  const location = useLocation();
 
-  // If navigated from landing page with state
-  React.useEffect(() => {
-    if (location.state && (location.state as any).role) {
-      setRoleType((location.state as any).role);
-      if ((location.state as any).role === 'Content Creator') {
-        setEmail('elena.r@droplet.ai');
-        setFullName('Elena Rostova');
-      }
-    }
-  }, [location.state]);
-
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (isLogin) {
-      // Login success
+    setAuthError('');
+    if (!isLogin && password !== confirmPassword) {
+      setAuthError('Passwords do not match.');
+      return;
+    }
+    setIsSubmitting(true);
+    try {
+      const session = isLogin
+        ? await api.login({ email, password })
+        : await api.signup({ fullName, email, password, organisationName });
+      saveAuthSession(session);
+      const backendRole = session.role === 'OWNER' || session.role === 'ADMIN'
+        ? 'Brand Owner / Admin'
+        : session.role === 'MARKETING_MANAGER'
+          ? 'Marketing Manager'
+          : session.role === 'REVIEWER'
+            ? 'Authorised Reviewer'
+            : 'Content Creator';
+      setCurrentUser({
+        id: session.userId,
+        name: session.fullName,
+        email: session.email,
+        role: backendRole,
+        department: 'General',
+        status: 'active',
+        avatar: ''
+      });
       setIsAuthenticated(true);
-      const matchedUser = team.find(t => t.email.toLowerCase() === email.toLowerCase());
-      if (matchedUser) {
-        setCurrentUser(matchedUser);
+      const existingBrands = await api.getBrands(session.organisationId);
+      if (isLogin) {
+        if (existingBrands.length) {
+          const brand = existingBrands[0];
+          setSelectedBrandId(brand.id);
+          navigate(`/${brand.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/EnterpriseAnalytics`);
+        } else {
+          navigate(`/${session.organisationId}/Home`);
+        }
+      } else {
+        if (existingBrands.length) {
+          const brand = existingBrands[0];
+          setSelectedBrandId(brand.id);
+          navigate(`/${brand.name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}/EnterpriseAnalytics`);
+        } else {
+          navigate(`/${session.organisationId}/Home`);
+        }
       }
-      navigate(`/${selectedBrand.slug}/EnterpriseAnalytics`);
-    } else {
-      // Registration requires OTP verification step first
-      if (password !== confirmPassword) {
-        alert('Passwords do not match!');
-        return;
-      }
-      setStep('otp');
+    } catch (error) {
+      setAuthError(error instanceof ApiError ? error.message : 'Could not sign in. Please try again.');
+    } finally {
+      setIsSubmitting(false);
     }
-  };
-
-  const handleVerifyOtp = (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsAuthenticated(true);
-    // Create new user or sign in
-    const newUser = {
-      id: 'tm-' + Date.now(),
-      name: fullName,
-      email,
-      role: roleType,
-      department: roleType === 'Brand Owner / Admin' ? 'Executive Governance' : 'Copywriting',
-      status: 'active' as const,
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
-      personalComplianceScore: 90
-    };
-    setCurrentUser(newUser);
-    navigate(`/${selectedBrand.slug}/EnterpriseAnalytics`);
   };
 
   const handleGoogleAuth = () => {
-    setIsAuthenticated(true);
-    navigate(`/${selectedBrand.slug}/EnterpriseAnalytics`);
+    setAuthError('Google sign-in is not configured on the backend yet.');
   };
 
   return (
@@ -92,8 +94,7 @@ export const LoginRegisterAuth: React.FC<{ initialMode?: 'login' | 'register' }>
           <p className="text-xs text-slate-500 mt-1 uppercase tracking-wider font-semibold">dropletai.domain • Secure Authentication</p>
         </div>
 
-        {step === 'form' ? (
-          <div>
+        <div>
             {/* Toggle tabs */}
             <div className="flex bg-gray-100 p-1 rounded-xl mb-6 border border-gray-200">
               <button
@@ -123,6 +124,20 @@ export const LoginRegisterAuth: React.FC<{ initialMode?: 'login' | 'register' }>
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
                     placeholder="Victoria Vance"
+                  />
+                </div>
+              )}
+
+              {!isLogin && (
+                <div>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Organisation Name</label>
+                  <input
+                    type="text"
+                    required
+                    value={organisationName}
+                    onChange={(e) => setOrganisationName(e.target.value)}
+                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
+                    placeholder="Your company"
                   />
                 </div>
               )}
@@ -194,26 +209,15 @@ export const LoginRegisterAuth: React.FC<{ initialMode?: 'login' | 'register' }>
                 </div>
               )}
 
-              {!isLogin && (
-                <div>
-                  <label className="block text-xs font-medium text-slate-700 mb-1">Account Role</label>
-                  <select
-                    value={roleType}
-                    onChange={(e) => setRoleType(e.target.value as any)}
-                    className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none cursor-pointer font-medium"
-                  >
-                    <option value="Brand Owner / Admin">Brand Owner / Admin</option>
-                    <option value="Content Creator">Content Creator / Employee</option>
-                  </select>
-                </div>
-              )}
+              {authError && <p role="alert" className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">{authError}</p>}
 
               <button
                 type="submit"
-                className="w-full mt-2 bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 rounded-xl transition flex items-center justify-center space-x-2 shadow select-none"
+                disabled={isSubmitting}
+                className="w-full mt-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-60 text-white font-semibold py-2.5 rounded-xl transition flex items-center justify-center space-x-2 shadow select-none"
               >
-                <span>{isLogin ? 'Sign In to Workspace' : 'Continue to Email Verification'}</span>
-                <ArrowRight className="w-4 h-4" />
+                <span>{isSubmitting ? 'Connecting…' : isLogin ? 'Sign In to Workspace' : 'Create Owner Account'}</span>
+                {!isSubmitting && <ArrowRight className="w-4 h-4" />}
               </button>
             </form>
 
@@ -235,53 +239,10 @@ export const LoginRegisterAuth: React.FC<{ initialMode?: 'login' | 'register' }>
                   <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.06H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.94l2.85-2.22.81-.63z" />
                   <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.06l3.66 2.84c.87-2.6 3.3-4.52 6.16-4.52z" />
                 </svg>
-                <span>Continue with Google OAuth</span>
+                <span>Google sign-in (not configured)</span>
               </button>
             </div>
-          </div>
-        ) : (
-          /* OTP Verification Card for Registration */
-          <div className="space-y-6">
-            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center space-y-2">
-              <CheckCircle2 className="w-10 h-10 text-emerald-600 mx-auto" />
-              <h2 className="text-sm font-bold text-slate-900">2FA Email Verification</h2>
-              <p className="text-xs text-slate-600">
-                Verification code sent to <span className="text-indigo-600 font-mono font-medium">{email}</span>. (Enter mock OTP: <span className="text-emerald-700 font-mono font-bold">123456</span>)
-              </p>
-            </div>
-
-            <form onSubmit={handleVerifyOtp} className="space-y-4">
-              <div className="flex justify-center space-x-2">
-                {otpCode.map((digit, idx) => (
-                  <input
-                    key={idx}
-                    type="text"
-                    maxLength={1}
-                    value={digit}
-                    onChange={(e) => {
-                      const newOtp = [...otpCode];
-                      newOtp[idx] = e.target.value;
-                      setOtpCode(newOtp);
-                    }}
-                    className="w-12 h-12 bg-white border border-gray-300 rounded-xl text-center text-lg font-mono text-slate-900 focus:outline-none focus:border-indigo-600 shadow-sm"
-                  />
-                ))}
-              </div>
-
-              <div className="text-center">
-                <span className="text-[11px] text-slate-500">Resend code in {resendTimer}s</span>
-              </div>
-
-              <button
-                type="submit"
-                className="w-full bg-slate-900 hover:bg-slate-800 text-white font-semibold py-2.5 rounded-xl transition flex items-center justify-center space-x-2 shadow select-none"
-              >
-                <span>Verify & Complete Registration</span>
-                <ArrowRight className="w-4 h-4" />
-              </button>
-            </form>
-          </div>
-        )}
+        </div>
 
         <div className="mt-8 pt-6 border-t border-gray-200 text-center">
           <p className="text-xs text-slate-500">Secure JWT Session • Supabase Enterprise Vault</p>

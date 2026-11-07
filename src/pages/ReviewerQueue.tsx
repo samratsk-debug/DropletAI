@@ -152,8 +152,9 @@ export const ReviewerQueue: React.FC = () => {
                       <button
                         type="button"
                         onClick={() => {
-                          updateContentStatus(item.id, 'Approved', 'Fast-track approval from queue');
-                          showToast('Collateral approved & personal author score incremented.');
+                          void updateContentStatus(item.id, 'Approved', 'Fast-track approval from queue')
+                            .then(() => showToast('Collateral approved.'))
+                            .catch(() => showToast('Could not approve the content.'));
                         }}
                         className="px-2.5 py-1.5 bg-emerald-50 text-emerald-700 border border-emerald-300 rounded-lg text-xs font-semibold hover:bg-emerald-100 transition select-none"
                         title="Quick Approve"

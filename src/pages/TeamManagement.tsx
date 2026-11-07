@@ -1,12 +1,35 @@
-import React from 'react';
-import { Users, Shield, CheckCircle } from 'lucide-react';
+import React, { useState } from 'react';
+import { Users, Shield, Plus } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { TeamMember } from '../types';
 
 export const TeamManagement: React.FC = () => {
-  const { team, updateTeamMemberStatus, currentUser } = useApp();
+  const { team, addTeamMember, updateTeamMemberRole, currentUser } = useApp();
+  const [showAdd, setShowAdd] = useState(false);
+  const [email, setEmail] = useState('');
+  const [role, setRole] = useState<TeamMember['role']>('Content Creator');
+  const [formError, setFormError] = useState('');
+  const [saving, setSaving] = useState(false);
 
   const isOwner = currentUser.role === 'Brand Owner / Admin';
+  const canManageMembers = isOwner;
+
+  const handleAddMember = async (event: React.FormEvent) => {
+    event.preventDefault();
+    setSaving(true);
+    setFormError('');
+    try {
+      await addTeamMember({
+        id: '', name: email, email, role, department: 'General', status: 'active', avatar: ''
+      });
+      setEmail('');
+      setShowAdd(false);
+    } catch (error) {
+      setFormError(error instanceof Error ? error.message : 'Could not add this member.');
+    } finally {
+      setSaving(false);
+    }
+  };
 
   const roleDescriptions: Record<TeamMember['role'], string> = {
     'Brand Owner / Admin': 'Full administrative control, master guideline editing, team permissions, and global analytics.',
@@ -34,6 +57,11 @@ export const TeamManagement: React.FC = () => {
           </div>
         </div>
 
+        {canManageMembers && (
+          <button type="button" onClick={() => setShowAdd(true)} className="mt-4 md:mt-0 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-semibold flex items-center gap-2">
+            <Plus className="w-4 h-4" /> Add registered user
+          </button>
+        )}
         {!isOwner && (
           <div className="mt-4 md:mt-0">
             <span className="px-3 py-1.5 bg-amber-50 border border-amber-200 text-amber-800 rounded-lg text-xs font-semibold">
@@ -71,8 +99,8 @@ export const TeamManagement: React.FC = () => {
           <tbody className="divide-y divide-gray-200 text-slate-800">
             {team.map((member) => {
               const isTargetAdmin = member.role === 'Brand Owner / Admin';
-              // CRITICAL SECURITY RULE: Non-Owners can NEVER suspend or modify Brand Owners / Admins.
-              const canModify = isOwner && !isTargetAdmin;
+              // Owner and admin membership cannot be changed through the member role endpoint.
+              const canModify = canManageMembers && !isTargetAdmin;
 
               return (
                 <tr key={member.id} className="hover:bg-gray-50 transition">
@@ -101,13 +129,14 @@ export const TeamManagement: React.FC = () => {
                   <td className="px-6 py-4 text-right">
                     {canModify ? (
                       <select
-                        value={member.status}
-                        onChange={(e) => updateTeamMemberStatus(member.id, e.target.value as any)}
+                        value={member.role === 'Brand Owner / Admin' ? 'ADMIN' : member.role}
+                        onChange={(e) => void updateTeamMemberRole(member.id, e.target.value as TeamMember['role']).catch(() => undefined)}
                         className="bg-gray-50 border border-gray-300 text-xs text-slate-800 rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer font-medium"
                       >
-                        <option value="active">Active</option>
-                        <option value="invited">Invited</option>
-                        <option value="suspended">Suspended</option>
+                        <option value="ADMIN">Admin</option>
+                        <option value="Marketing Manager">Marketing Manager</option>
+                        <option value="Content Creator">Content Creator</option>
+                        <option value="Authorised Reviewer">Authorised Reviewer</option>
                       </select>
                     ) : (
                       <span className="text-[11px] text-slate-400 italic bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
@@ -121,6 +150,30 @@ export const TeamManagement: React.FC = () => {
           </tbody>
         </table>
       </div>
+      {showAdd && (
+        <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
+          <form onSubmit={handleAddMember} className="w-full max-w-md bg-white rounded-2xl p-6 space-y-4 shadow-xl">
+            <h2 className="text-lg font-bold text-slate-900">Add an existing account</h2>
+            <p className="text-xs text-slate-600">The backend only adds users who have already registered. New account invitations are not available yet.</p>
+            {formError && <p role="alert" className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">{formError}</p>}
+            <label className="block text-xs font-medium text-slate-700">Account email
+              <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
+            </label>
+            <label className="block text-xs font-medium text-slate-700">Role
+              <select value={role} onChange={e => setRole(e.target.value as TeamMember['role'])} className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm">
+                <option value="Content Creator">Content Creator</option>
+                <option value="Marketing Manager">Marketing Manager</option>
+                <option value="Authorised Reviewer">Authorised Reviewer</option>
+                <option value="Brand Owner / Admin" disabled>Admin (not assignable here)</option>
+              </select>
+            </label>
+            <div className="flex justify-end gap-2">
+              <button type="button" onClick={() => setShowAdd(false)} className="px-4 py-2 rounded-lg border text-xs">Cancel</button>
+              <button disabled={saving} className="px-4 py-2 rounded-lg bg-slate-900 text-white text-xs disabled:opacity-60">{saving ? 'Adding…' : 'Add member'}</button>
+            </div>
+          </form>
+        </div>
+      )}
     </div>
   );
 };
