@@ -4,6 +4,8 @@ package com.dropletai.backend.controller;
 import com.dropletai.backend.dto.AuthResponse;
 import com.dropletai.backend.dto.SignupRequest;
 import com.dropletai.backend.dto.LoginRequest;
+import com.dropletai.backend.dto.FirebaseTokenRequest;
+import com.dropletai.backend.service.FirebaseAuthService;
 import com.dropletai.backend.service.AuthService;
 
 import jakarta.validation.Valid;
@@ -16,9 +18,11 @@ import org.springframework.web.bind.annotation.*;
 public class AuthController {
 
     private final AuthService authService;
+    private final FirebaseAuthService firebaseAuthService;
 
-    public AuthController(AuthService authService) {
+    public AuthController(AuthService authService, FirebaseAuthService firebaseAuthService) {
         this.authService = authService;
+        this.firebaseAuthService = firebaseAuthService;
     }
 
     // SIGNUP API
@@ -37,5 +41,12 @@ public class AuthController {
     ) {
         AuthResponse response = authService.login(request);
         return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/firebase")
+    public ResponseEntity<AuthResponse> firebaseSignIn(
+            @Valid @RequestBody FirebaseTokenRequest request
+    ) {
+        return ResponseEntity.ok(firebaseAuthService.signIn(request));
     }
 }

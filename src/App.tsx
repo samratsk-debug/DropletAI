@@ -2,6 +2,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import { AppProvider, useApp } from './context/AppContext';
 import { Navbar } from './components/Navbar';
+import { ThemeProvider } from './context/ThemeContext';
 
 // Landing & Auth Pages
 import { LandingPage } from './pages/LandingPage';
@@ -20,6 +21,7 @@ import { EmployeeWorkspace } from './pages/EmployeeWorkspace';
 import { EmployeePerformance } from './pages/EmployeePerformance';
 import { ContentAuditReport } from './pages/ContentAuditReport';
 import { ContentUpload } from './pages/ContentUpload';
+import { KnowledgeBase } from './pages/KnowledgeBase';
 
 const AppContent: React.FC = () => {
   const { isAuthenticated, selectedBrand, isLoadingWorkspace, apiError, clearApiError } = useApp();
@@ -29,7 +31,7 @@ const AppContent: React.FC = () => {
   const isLandingPage = location.pathname === '/';
 
   return (
-    <div className="min-h-screen bg-gray-50 text-slate-900 flex flex-col font-sans">
+    <div className={`app-shell ${isLandingPage ? 'public-shell' : 'internal-shell'} min-h-screen bg-gray-50 text-slate-900 flex flex-col font-sans`}>
       {!isLandingPage && <Navbar />}
       <main className="flex-1 w-full">
         {apiError && isAuthenticated && (
@@ -45,8 +47,8 @@ const AppContent: React.FC = () => {
           <Route path="/" element={<LandingPage />} />
 
           {/* Separate Login and Register routes with OTP verification */}
-          <Route path="/login" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <Navigate to={`/${selectedBrand.slug}/${selectedBrand.id ? 'EnterpriseAnalytics' : 'Home'}`} />) : <LoginRegisterAuth initialMode="login" />} />
-          <Route path="/register" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <Navigate to={`/${selectedBrand.slug}/${selectedBrand.id ? 'EnterpriseAnalytics' : 'Home'}`} />) : <LoginRegisterAuth initialMode="register" />} />
+          <Route path="/login" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <Navigate to={`/${selectedBrand.slug}/${selectedBrand.id ? 'EnterpriseAnalytics' : 'Home'}`} />) : location.state?.fromLanding === true ? <LoginRegisterAuth initialMode="login" /> : <Navigate to="/" replace />} />
+          <Route path="/register" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <Navigate to={`/${selectedBrand.slug}/${selectedBrand.id ? 'EnterpriseAnalytics' : 'Home'}`} />) : location.state?.fromLanding === true ? <LoginRegisterAuth initialMode="register" /> : <Navigate to="/" replace />} />
 
           {/* Brand-Scoped Dynamic Routes */}
           <Route path="/:brandSlug/Home" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <BrandHomeHub />) : <Navigate to="/login" />} />
@@ -54,6 +56,7 @@ const AppContent: React.FC = () => {
           <Route path="/:brandSlug/AnalyticsGraph" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <AnalyticsGraph />) : <Navigate to="/login" />} />
           <Route path="/:brandSlug/Team" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <TeamManagement />) : <Navigate to="/login" />} />
           <Route path="/:brandSlug/BrandGuidelines" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <BrandSetup />) : <Navigate to="/login" />} />
+          <Route path="/:brandSlug/KnowledgeBase" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <KnowledgeBase />) : <Navigate to="/login" />} />
           <Route path="/:brandSlug/ApprovalQueue" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <ReviewerQueue />) : <Navigate to="/login" />} />
           <Route path="/:brandSlug/AIBrandReview" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <AIBrandReview />) : <Navigate to="/login" />} />
           <Route path="/:brandSlug/Settings" element={isAuthenticated ? (isLoadingWorkspace ? <p className="p-8 text-center text-sm text-slate-500">Loading your workspace…</p> : <SecurityApiSettings />) : <Navigate to="/login" />} />
@@ -77,11 +80,13 @@ const AppContent: React.FC = () => {
 
 export function App() {
   return (
-    <AppProvider>
-      <Router>
-        <AppContent />
-      </Router>
-    </AppProvider>
+    <ThemeProvider>
+      <AppProvider>
+        <Router>
+          <AppContent />
+        </Router>
+      </AppProvider>
+    </ThemeProvider>
   );
 }
 

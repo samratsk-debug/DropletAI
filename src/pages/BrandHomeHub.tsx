@@ -6,7 +6,7 @@ import { EnterpriseBrand } from '../types';
 import { ApiError } from '../api';
 
 export const BrandHomeHub: React.FC = () => {
-  const { brands, addBrand, setSelectedBrandId, currentUser } = useApp();
+  const { brands, addBrand, setSelectedBrandId, currentUser, contents } = useApp();
   const navigate = useNavigate();
 
   const [showAddBrandModal, setShowAddBrandModal] = useState(false);
@@ -16,8 +16,8 @@ export const BrandHomeHub: React.FC = () => {
 
   const isOwner = currentUser.role === 'Brand Owner / Admin';
 
-  // For employees, show only assigned brands (or all if not restricted)
-  const displayedBrands = isOwner ? brands : brands.filter(b => currentUser.assignedBrandIds?.includes(b.id));
+  // The backend currently returns organisation-wide brands and has no per-brand membership relation.
+  const displayedBrands = brands;
 
   const handleCreateBrand = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -30,11 +30,11 @@ export const BrandHomeHub: React.FC = () => {
       slug,
       name: brandName,
       logo: '',
-      complianceRate: 92.0,
-      activeAuditsCount: 4,
+      complianceRate: 0,
+      activeAuditsCount: 0,
       riskLevel: 'Low',
       lastSync: new Date().toISOString().replace('T', ' ').slice(0, 16),
-      departmentCount: 3,
+      departmentCount: 0,
       description: brandDescription || 'Enterprise sub-brand governance repository.'
     };
 
@@ -58,8 +58,8 @@ export const BrandHomeHub: React.FC = () => {
               <Building2 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{brands.length ? 'Enterprise Brand Hub' : 'Set up your first brand'}</h1>
-              <p className="text-xs text-slate-500 mt-0.5">{brands.length ? 'Select a brand workspace or manage your authorized portfolio repositories.' : 'Your account is ready. Create a brand workspace to start using Droplet AI.'}</p>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">{brands.length ? 'Your brands' : 'Set up your first brand'}</h1>
+              <p className="text-xs text-slate-500 mt-0.5">{brands.length ? 'Choose a brand to open its workspace.' : 'Create a brand workspace to get started.'}</p>
             </div>
           </div>
         </div>
@@ -99,7 +99,7 @@ export const BrandHomeHub: React.FC = () => {
                     brand.riskLevel === 'Medium' ? 'bg-amber-50 text-amber-700 border border-amber-200' :
                     'bg-rose-50 text-rose-700 border border-rose-200'
                   }`}>
-                    {brand.riskLevel} Risk • {brand.complianceRate}% Compliance
+                    {brand.riskLevel} Risk • {brand.complianceRate ? `${brand.complianceRate}% Compliance` : 'No audit data'}
                   </span>
                 </div>
               </div>
@@ -109,7 +109,7 @@ export const BrandHomeHub: React.FC = () => {
 
             <div className="space-y-2 pt-4 border-t border-gray-100">
               <div className="flex justify-between text-[11px] text-slate-500 font-mono">
-                <span>Active Audits: {brand.activeAuditsCount}</span>
+                <span>Audits: {contents.filter(content => content.brandId === brand.id).length}</span>
                 <span>Departments: {brand.departmentCount}</span>
               </div>
 
@@ -121,7 +121,7 @@ export const BrandHomeHub: React.FC = () => {
                 }}
                 className="w-full py-2.5 bg-gray-50 hover:bg-slate-900 hover:text-white text-slate-800 border border-gray-300 hover:border-slate-900 rounded-xl text-xs font-semibold transition flex items-center justify-center space-x-2 select-none"
               >
-                <span>Enter Workspace</span>
+              <span>Open workspace</span>
                 <ArrowRight className="w-4 h-4" />
               </button>
             </div>

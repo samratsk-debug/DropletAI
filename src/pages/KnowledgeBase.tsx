@@ -1,0 +1,45 @@
+import React, { useCallback, useEffect, useState } from 'react';
+import { BookOpen, Check, Download, FileText, Plus, Trash2, X } from 'lucide-react';
+import { ApiError, api, type ApiDocument, type ApiFact, type ApiKnowledge } from '../api';
+import { useApp } from '../context/AppContext';
+
+export const KnowledgeBase: React.FC = () => {
+  const { organisationId, selectedBrandId, selectedBrand, isAuthenticated, currentUser } = useApp();
+  const [knowledge, setKnowledge] = useState<ApiKnowledge | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [title, setTitle] = useState('');
+  const [content, setContent] = useState('');
+  const [source, setSource] = useState('');
+  const [file, setFile] = useState<File | null>(null);
+  const isManager = ['Brand Owner / Admin', 'Marketing Manager', 'Authorised Reviewer'].includes(currentUser.role);
+  const load = useCallback(async () => {
+    if (!isAuthenticated || !organisationId) return;
+    setLoading(true); setError('');
+    try { setKnowledge(await api.getKnowledge(organisationId, selectedBrandId || undefined)); }
+    catch (e) { setError(e instanceof ApiError ? e.message : 'Could not load the knowledge base.'); }
+    finally { setLoading(false); }
+  }, [isAuthenticated, organisationId, selectedBrandId]);
+  useEffect(() => { void load(); }, [load]);
+  const addFact = async (event: React.FormEvent) => { event.preventDefault(); if (!title.trim() || !content.trim()) return; setSaving(true); setError(''); try { await api.createFact(organisationId, { title: title.trim(), content: content.trim(), source: source.trim() || undefined, brandId: selectedBrandId || undefined }); setTitle(''); setContent(''); setSource(''); await load(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Could not save this fact.'); } finally { setSaving(false); } };
+  const updateFact = async (fact: ApiFact, status: string) => { try { await api.setFactStatus(organisationId, fact.id, status); await load(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Could not update this fact.'); } };
+  const removeFact = async (fact: ApiFact) => { try { await api.deleteFact(organisationId, fact.id); await load(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Could not delete this fact.'); } };
+  const upload = async (event: React.FormEvent) => { event.preventDefault(); if (!file) return; setSaving(true); setError(''); try { await api.uploadDocument(organisationId, file, selectedBrandId || undefined); setFile(null); await load(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Could not upload this document.'); } finally { setSaving(false); } };
+  const download = async (doc: ApiDocument) => { try { const blob = await api.downloadDocument(organisationId, doc.id); const url = URL.createObjectURL(blob); const anchor = document.createElement('a'); anchor.href = url; anchor.download = doc.originalFilename; anchor.click(); URL.revokeObjectURL(url); } catch (e) { setError(e instanceof ApiError ? e.message : 'Could not download this document.'); } };
+  const removeDocument = async (doc: ApiDocument) => { try { await api.deleteDocument(organisationId, doc.id); await load(); } catch (e) { setError(e instanceof ApiError ? e.message : 'Could not delete this document.'); } };
+  if (!isAuthenticated) return <div className="max-w-4xl mx-auto p-8 text-center text-slate-500">Sign in to view your knowledge base.</div>;
+  return <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-7">
+    <header className="flex items-center gap-3 border-b border-gray-200 pb-6"><div className="p-2.5 bg-slate-900 text-white rounded-xl"><BookOpen className="w-6 h-6" /></div><div><h1 className="text-2xl font-bold text-slate-900">Knowledge Base</h1><p className="text-xs text-slate-500">Approved facts and reference documents{selectedBrandId ? ` for ${selectedBrand.name}` : ' for this organisation'}.</p></div></header>
+    {error && <div role="alert" className="p-3 rounded-xl border border-rose-300 bg-rose-50 text-rose-800 text-xs flex justify-between gap-3"><span>{error}</span><button type="button" onClick={() => setError('')} aria-label="Dismiss"><X className="w-4 h-4" /></button></div>}
+    {loading && <p className="text-xs text-slate-500">Loading…</p>}
+    {!loading && knowledge && <>
+      <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5 shadow-sm"><div><h2 className="font-bold text-slate-900">Verified facts</h2><p className="text-xs text-slate-500 mt-1">New facts need approval before they’re approved.</p></div>
+        <form onSubmit={addFact} className="grid md:grid-cols-2 gap-3"><input required value={title} onChange={e => setTitle(e.target.value)} placeholder="Fact title" className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-xs" /><input value={source} onChange={e => setSource(e.target.value)} placeholder="Source (optional)" className="bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-xs" /><textarea required value={content} onChange={e => setContent(e.target.value)} placeholder="Verified fact or claim" rows={2} className="md:col-span-2 bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-xs" /><div><button disabled={saving} className="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold disabled:opacity-50"><Plus className="inline w-3.5 h-3.5 mr-1" />Add fact</button></div></form>
+        <div className="space-y-3">{knowledge.approvedFacts.length ? knowledge.approvedFacts.map(fact => <article key={fact.id} className="border border-gray-200 rounded-xl p-4 flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3"><div><h3 className="text-sm font-semibold text-slate-900">{fact.title} <span className="ml-2 text-[10px] uppercase text-indigo-600">{fact.verificationStatus}</span></h3><p className="text-xs text-slate-600 mt-1 whitespace-pre-wrap">{fact.content}</p>{fact.source && <p className="text-[10px] text-slate-500 mt-2">Source: {fact.source}</p>}</div><div className="flex gap-2 shrink-0">{isManager && fact.verificationStatus !== 'APPROVED' && <button type="button" onClick={() => void updateFact(fact, 'APPROVED')} className="px-2.5 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 text-[10px] font-semibold"><Check className="inline w-3 h-3 mr-1" />Approve</button>}{isManager && fact.verificationStatus !== 'REJECTED' && <button type="button" onClick={() => void updateFact(fact, 'REJECTED')} className="px-2.5 py-1.5 rounded-lg bg-amber-50 text-amber-800 text-[10px] font-semibold">Reject</button>}{currentUser.role === 'Brand Owner / Admin' && <button type="button" onClick={() => void removeFact(fact)} aria-label={`Delete ${fact.title}`} className="p-1.5 rounded-lg bg-gray-100 text-slate-500"><Trash2 className="w-3.5 h-3.5" /></button>}</div></article>) : <p className="text-xs text-slate-500">No facts recorded yet.</p>}</div>
+      </section>
+      <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-5 shadow-sm"><div><h2 className="font-bold text-slate-900">Reference documents</h2><p className="text-xs text-slate-500 mt-1">Upload TXT, PDF, or DOCX files up to 15 MB.</p></div><form onSubmit={upload} className="flex flex-col sm:flex-row gap-3"><input type="file" accept=".txt,.pdf,.docx" onChange={e => setFile(e.target.files?.[0] || null)} className="text-xs text-slate-600" /><button disabled={!file || saving} className="px-3 py-2 rounded-lg bg-slate-900 text-white text-xs font-semibold disabled:opacity-50">Upload document</button></form><div className="divide-y divide-gray-100">{knowledge.documents.length ? knowledge.documents.map(doc => <div key={doc.id} className="py-3 flex items-center justify-between gap-3"><div className="flex items-center gap-2"><FileText className="w-4 h-4 text-indigo-500" /><div><p className="text-xs font-semibold text-slate-900">{doc.originalFilename}</p><p className="text-[10px] text-slate-500">{doc.fileType} · {Math.ceil(doc.fileSize / 1024)} KB · {doc.processingStatus}</p></div></div><div className="flex gap-2"><button type="button" onClick={() => void download(doc)} className="p-2 rounded-lg bg-gray-100 text-slate-600" aria-label={`Download ${doc.originalFilename}`}><Download className="w-4 h-4" /></button><button type="button" onClick={() => void removeDocument(doc)} className="p-2 rounded-lg bg-gray-100 text-slate-600" aria-label={`Delete ${doc.originalFilename}`}><Trash2 className="w-4 h-4" /></button></div></div>) : <p className="py-4 text-xs text-slate-500">No documents uploaded yet.</p>}</div></section>
+      {knowledge.documentSnippets?.length > 0 && <section className="bg-white border border-gray-200 rounded-2xl p-6 space-y-3"><h2 className="font-bold text-slate-900">Extracted snippets</h2>{knowledge.documentSnippets.map((snippet, i) => <p key={i} className="text-xs text-slate-600 border-l-2 border-indigo-500 pl-3 whitespace-pre-wrap">{snippet}</p>)}</section>}
+    </>}
+  </div>;
+};

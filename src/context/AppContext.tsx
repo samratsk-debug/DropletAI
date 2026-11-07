@@ -10,11 +10,12 @@ interface AppContextType {
   setSelectedBrandId: (id: string) => void;
   selectedBrand: EnterpriseBrand;
   guidelines: BrandGuidelines;
-  updateGuidelines: (updater: (prev: BrandGuidelines) => BrandGuidelines) => void;
+  updateGuidelines: (updater: (prev: BrandGuidelines) => BrandGuidelines) => Promise<boolean>;
   team: TeamMember[];
   addTeamMember: (member: TeamMember) => Promise<void>;
   updateTeamMemberStatus: (id: string, status: TeamMember['status']) => void;
   updateTeamMemberRole: (id: string, role: TeamMember['role']) => Promise<void>;
+  removeTeamMember: (id: string) => Promise<void>;
   contents: ContentItem[];
   addContent: (content: ContentItem) => void;
   updateContentStatus: (id: string, status: ContentItem['status'], note?: string) => Promise<void>;
@@ -56,7 +57,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: getAuthSession()!.userId,
       name: getAuthSession()!.fullName,
       email: getAuthSession()!.email,
-      role: getAuthSession()!.role === 'OWNER' ? 'Brand Owner / Admin' : 'Content Creator',
+      role: getAuthSession()!.role === 'OWNER' ? 'Brand Owner / Admin' : getAuthSession()!.role === 'ADMIN' ? 'Admin' : getAuthSession()!.role === 'MARKETING_MANAGER' ? 'Marketing Manager' : getAuthSession()!.role === 'REVIEWER' ? 'Authorised Reviewer' : 'Content Creator',
       department: 'General',
       status: 'active',
       avatar: ''
@@ -105,8 +106,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       id: session.userId,
       name: session.fullName,
       email: session.email,
-      role: session.role === 'OWNER' || session.role === 'ADMIN'
+      role: session.role === 'OWNER'
         ? 'Brand Owner / Admin'
+        : session.role === 'ADMIN' ? 'Admin'
         : session.role === 'MARKETING_MANAGER' ? 'Marketing Manager'
           : session.role === 'REVIEWER' ? 'Authorised Reviewer' : 'Content Creator',
       department: 'General',
@@ -134,9 +136,22 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       api.getBrands(session.organisationId),
       api.getGuidelines(session.organisationId),
       api.getMembers(session.organisationId),
-      api.getSubmissions(session.organisationId)
-    ]).then(([apiBrands, apiGuidelines, apiMembers, apiContents]) => {
+      api.getSubmissions(session.organisationId),
+      api.getMe(),
+      api.getMyOrganisation()
+    ]).then(([apiBrands, apiGuidelines, apiMembers, apiContents, profile, organisation]) => {
       if (!active) return;
+      if (profile.id !== session.userId || profile.email.toLowerCase() !== session.email.toLowerCase()) {
+        setApiError('The signed-in account details do not match the backend session. Please sign in again.');
+        setIsAuthenticated(false);
+        return;
+      }
+      setCurrentUser(prev => ({ ...prev, name: profile.fullName, email: profile.email }));
+      if (organisation.organisationId !== session.organisationId) {
+        setApiError('The organisation in your session does not match the backend membership. Please sign in again.');
+        setIsAuthenticated(false);
+        return;
+      }
       const mappedBrands: EnterpriseBrand[] = apiBrands.map(brand => ({
         id: brand.id,
         slug: brand.name.toLowerCase().replace(/[^a-z0-9]+/g, '-'),
@@ -160,14 +175,15 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         if (record) {
           try { setGuidelines(JSON.parse(record.content) as BrandGuidelines); }
           catch { setGuidelines(INITIAL_GUIDELINES); }
-        } else setGuidelines(INITIAL_GUIDELINES);
+        } else setGuidelines({ ...INITIAL_GUIDELINES, productSpecs: [], terminologyRules: [], toneOfVoice: { ...INITIAL_GUIDELINES.toneOfVoice, guidelinesText: '' }, visualAssets: [], colorPalette: [] });
       } else {
         setSelectedBrandIdState('');
         sessionStorage.removeItem('droplet_selected_brand');
-        setGuidelines(INITIAL_GUIDELINES);
+        setGuidelines({ ...INITIAL_GUIDELINES, productSpecs: [], terminologyRules: [], toneOfVoice: { ...INITIAL_GUIDELINES.toneOfVoice, guidelinesText: '' }, visualAssets: [], colorPalette: [] });
       }
-      const roleLabel = (role: string): TeamMember['role'] => role === 'OWNER' || role === 'ADMIN'
+      const roleLabel = (role: string): TeamMember['role'] => role === 'OWNER'
         ? 'Brand Owner / Admin'
+        : role === 'ADMIN' ? 'Admin'
         : role === 'MARKETING_MANAGER' ? 'Marketing Manager'
           : role === 'REVIEWER' ? 'Authorised Reviewer' : 'Content Creator';
       setTeam(apiMembers.map(member => ({
@@ -177,9 +193,27 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         role: roleLabel(member.role),
         department: 'General',
         status: 'active',
-        avatar: ''
+        avatar: `https://ui-avatars.com/api/?name=${encodeURIComponent(member.fullName)}&background=1e293b&color=fff`
       })));
       setContents(apiContents.map(mapSubmission));
+      if (apiBrands.length) {
+        const counts = new Map<string, number>();
+        const scores = new Map<string, number[]>();
+        for (const content of apiContents) {
+          counts.set(content.brandId, (counts.get(content.brandId) || 0) + 1);
+          const score = Math.max(0, 100 - (content.analysisReport?.riskScore ?? 0));
+          scores.set(content.brandId, [...(scores.get(content.brandId) || []), score]);
+        }
+        setBrands(mappedBrands.map(brand => {
+          const brandContents = scores.get(brand.id) || [];
+          return {
+            ...brand,
+            activeAuditsCount: counts.get(brand.id) || 0,
+            complianceRate: brandContents.length ? Math.round(brandContents.reduce((sum, score) => sum + score, 0) / brandContents.length) : 0,
+            riskLevel: brandContents.some(score => score < 50) ? 'High' : brandContents.some(score => score < 75) ? 'Medium' : 'Low'
+          };
+        }));
+      }
       setHasLoadedWorkspace(true);
     }).catch(error => {
       if (active) {
@@ -208,7 +242,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           catch { setApiError('Saved brand guidelines could not be read.'); }
         } else {
           delete guidelineRecordIds.current[selectedBrandId];
-          setGuidelines(INITIAL_GUIDELINES);
+          setGuidelines({ ...INITIAL_GUIDELINES, productSpecs: [], terminologyRules: [], toneOfVoice: { ...INITIAL_GUIDELINES.toneOfVoice, guidelinesText: '' }, visualAssets: [], colorPalette: [] });
         }
       }).catch(error => setApiError(error instanceof ApiError ? error.message : 'Could not load brand guidelines.'));
     }
@@ -271,14 +305,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     return mapped;
   };
 
-  const updateGuidelines = (updater: (prev: BrandGuidelines) => BrandGuidelines) => {
+  const updateGuidelines = async (updater: (prev: BrandGuidelines) => BrandGuidelines): Promise<boolean> => {
     if (isAuthenticated && currentUser.role !== 'Brand Owner / Admin') {
       setApiError('Only organisation owners and admins can edit brand guidelines.');
-      return;
+      return false;
     }
     const updated = updater(guidelines);
-    setGuidelines(updated);
-    if (!isAuthenticated || !organisationId) return;
+    if (!isAuthenticated) {
+      setGuidelines(updated);
+      return true;
+    }
+    if (!organisationId || !selectedBrandId) {
+      setApiError('Select a brand before saving its guidelines.');
+      return false;
+    }
     const recordId = guidelineRecordIds.current[selectedBrandId];
     const body = {
       title: '__droplet_guidelines_v1__',
@@ -288,20 +328,28 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     const save = recordId
       ? api.updateGuideline(organisationId, recordId, body)
       : api.createGuideline(organisationId, body);
-    save.then(record => { guidelineRecordIds.current[selectedBrandId] = record.id; })
-      .catch(error => setApiError(error instanceof ApiError ? error.message : 'Could not save brand guidelines.'));
+    try {
+      const record = await save;
+      guidelineRecordIds.current[selectedBrandId] = record.id;
+      setGuidelines(updated);
+      setApiError('');
+      return true;
+    } catch (error) {
+      setApiError(error instanceof ApiError ? error.message : 'Could not save brand guidelines.');
+      return false;
+    }
   };
 
   const addTeamMember = async (member: TeamMember) => {
     const roles: Record<TeamMember['role'], string> = {
-      'Brand Owner / Admin': 'ADMIN', 'Marketing Manager': 'MARKETING_MANAGER',
+      'Brand Owner / Admin': 'ADMIN', 'Admin': 'ADMIN', 'Marketing Manager': 'MARKETING_MANAGER',
       'Content Creator': 'CONTENT_CREATOR', 'Graphic Designer': 'CONTENT_CREATOR',
       'Authorised Reviewer': 'REVIEWER'
     };
     await api.addMember(organisationId, member.email, roles[member.role]);
     const members = await api.getMembers(organisationId);
     const created = members.find(item => item.email.toLowerCase() === member.email.toLowerCase());
-    if (created) setTeam(prev => [{ ...member, id: created.membershipId, name: created.fullName, role: ({ OWNER: 'Brand Owner / Admin', ADMIN: 'Brand Owner / Admin', MARKETING_MANAGER: 'Marketing Manager', REVIEWER: 'Authorised Reviewer', CONTENT_CREATOR: 'Content Creator' } as const)[created.role as 'OWNER' | 'ADMIN' | 'MARKETING_MANAGER' | 'REVIEWER' | 'CONTENT_CREATOR'] }, ...prev]);
+    if (created) setTeam(prev => [{ ...member, id: created.membershipId, name: created.fullName, role: ({ OWNER: 'Brand Owner / Admin', ADMIN: 'Admin', MARKETING_MANAGER: 'Marketing Manager', REVIEWER: 'Authorised Reviewer', CONTENT_CREATOR: 'Content Creator' } as const)[created.role as 'OWNER' | 'ADMIN' | 'MARKETING_MANAGER' | 'REVIEWER' | 'CONTENT_CREATOR'] }, ...prev]);
   };
 
   const updateTeamMemberStatus = (id: string, status: TeamMember['status']) => {
@@ -312,7 +360,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateTeamMemberRole = async (id: string, role: TeamMember['role']) => {
     const roles: Record<TeamMember['role'], string> = {
-      'Brand Owner / Admin': 'ADMIN', 'Marketing Manager': 'MARKETING_MANAGER',
+      'Brand Owner / Admin': 'ADMIN', 'Admin': 'ADMIN', 'Marketing Manager': 'MARKETING_MANAGER',
       'Content Creator': 'CONTENT_CREATOR', 'Graphic Designer': 'CONTENT_CREATOR',
       'Authorised Reviewer': 'REVIEWER'
     };
@@ -326,24 +374,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
+  const removeTeamMember = async (id: string) => {
+    try {
+      await api.removeMember(organisationId, id);
+      setTeam(prev => prev.filter(member => member.id !== id));
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Could not remove this team member.';
+      setApiError(message);
+      throw new Error(message);
+    }
+  };
+
   const addContent = (content: ContentItem) => {
     setContents(prev => [content, ...prev]);
     // Also update author's personal score if content creator
-    setTeam(prev => prev.map(m => {
-      if (m.name === content.author || m.email === content.authorEmail) {
-        const newScore = Math.round(((m.personalComplianceScore || 85) + content.complianceScore) / 2);
-        const newHistory = [
-          ...(m.historyScores || []),
-          { date: 'Just now', score: content.complianceScore, label: content.title.slice(0, 15) }
-        ];
-        return {
-          ...m,
-          personalComplianceScore: newScore,
-          historyScores: newHistory
-        };
-      }
-      return m;
-    }));
   };
 
   const updateContentStatus = async (id: string, status: ContentItem['status'], note?: string) => {
@@ -356,7 +400,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setApiError(message);
       throw new Error(message);
     }
-    const affectedContent = contents.find(item => item.id === id);
     setContents(prev => prev.map(item => {
       if (item.id !== id) return item;
       const mapped = mapSubmission(updated);
@@ -370,29 +413,6 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       return { ...mapped, revisionHistory: [newHistoryItem, ...item.revisionHistory] };
     }));
 
-    // Update individual author's performance score based on Approved vs Rejected/Changes
-    if (affectedContent) {
-      const authorName = affectedContent.author;
-      setTeam(prev => prev.map(m => {
-        if (m.name === authorName) {
-          let delta = 0;
-          if (status === 'Approved') delta = +4;
-          if (status === 'Rejected') delta = -12;
-          if (status === 'Changes Requested') delta = -6;
-          const updatedScore = Math.min(100, Math.max(30, (m.personalComplianceScore || 85) + delta));
-          const updatedHistory = [
-            ...(m.historyScores || []),
-            { date: 'Review', score: updatedScore, label: `${status}` }
-          ];
-          return {
-            ...m,
-            personalComplianceScore: updatedScore,
-            historyScores: updatedHistory
-          };
-        }
-        return m;
-      }));
-    }
   };
 
   const updateContentIssueStatus = (contentId: string, issueId: string, status: 'accepted' | 'rejected' | 'modified', newFix?: string) => {
@@ -405,6 +425,20 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
 
   const updateCurrentUser = (updates: Partial<TeamMember>) => {
     const updated = { ...currentUser, ...updates };
+    if (isAuthenticated) {
+      if (updated.name !== currentUser.name) {
+        setApiError('Profile name changes are not supported by the current backend. No changes were saved.');
+        return;
+      }
+      if (updated.email !== currentUser.email) {
+        setApiError('Email changes are not supported by the current backend. No changes were saved.');
+        return;
+      }
+      if (updated.department !== currentUser.department) {
+        setApiError('Department changes are not supported by the current backend. No changes were saved.');
+        return;
+      }
+    }
     setCurrentUser(updated);
     setTeam(prev => prev.map(m => m.id === updated.id ? updated : m));
   };
@@ -422,6 +456,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       addTeamMember,
       updateTeamMemberStatus,
       updateTeamMemberRole,
+      removeTeamMember,
       contents,
       addContent,
       updateContentStatus,

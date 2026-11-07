@@ -22,7 +22,6 @@ export const SecurityApiSettings: React.FC = () => {
   const [showConfirm, setShowConfirm] = useState(false);
 
   // 2FA state
-  const [is2FaEnabled, setIs2FaEnabled] = useState(false);
 
   // Toast
   const [toast, setToast] = useState<string | null>(null);
@@ -42,6 +41,10 @@ export const SecurityApiSettings: React.FC = () => {
 
   const handleSaveProfile = (e: React.FormEvent) => {
     e.preventDefault();
+    if (currentUser.id) {
+      showToast('Profile editing isn’t available yet. No changes were saved.');
+      return;
+    }
     setCurrentUser({
       ...currentUser,
       name,
@@ -62,10 +65,7 @@ export const SecurityApiSettings: React.FC = () => {
       showToast('Error: New passwords do not match.');
       return;
     }
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    showToast('Password updated successfully.');
+    showToast('Password changes aren’t available yet. No changes were saved.');
   };
 
   return (
@@ -77,8 +77,8 @@ export const SecurityApiSettings: React.FC = () => {
             <UserCog className="w-6 h-6" />
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Account & Profile Settings</h1>
-            <p className="text-xs text-slate-500 mt-0.5">Manage your personal details, profile picture, and security credentials.</p>
+            <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Account settings</h1>
+            <p className="text-xs text-slate-500 mt-0.5">Your account details and security options.</p>
           </div>
         </div>
       </div>
@@ -112,7 +112,7 @@ export const SecurityApiSettings: React.FC = () => {
 
           <div className="flex-1 space-y-2 text-center sm:text-left">
             <span className="text-xs font-bold text-slate-900 block">Profile Avatar</span>
-            <p className="text-xs text-slate-500">Upload a custom profile photo or use your text initials badge.</p>
+            <p className="text-xs text-slate-500">Add a profile photo or use your initials.</p>
             <div className="flex flex-wrap items-center justify-center sm:justify-start gap-3 pt-1">
               <label className="px-3.5 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-semibold rounded-xl cursor-pointer transition shadow flex items-center space-x-2">
                 <Camera className="w-4 h-4" />
@@ -152,6 +152,7 @@ export const SecurityApiSettings: React.FC = () => {
                 required
                 value={name}
                 onChange={(e) => setName(e.target.value)}
+                disabled={Boolean(currentUser.id)}
                 className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
               />
             </div>
@@ -162,6 +163,7 @@ export const SecurityApiSettings: React.FC = () => {
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
+                disabled={Boolean(currentUser.id)}
                 className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
               />
             </div>
@@ -172,6 +174,7 @@ export const SecurityApiSettings: React.FC = () => {
                 required
                 value={department}
                 onChange={(e) => setDepartment(e.target.value)}
+                disabled={Boolean(currentUser.id)}
                 className="w-full bg-gray-50 border border-gray-300 rounded-xl px-4 py-2.5 text-xs text-slate-900 focus:outline-none focus:border-indigo-600"
               />
             </div>
@@ -194,9 +197,10 @@ export const SecurityApiSettings: React.FC = () => {
           <div className="flex justify-end pt-4">
             <button
               type="submit"
+              disabled={Boolean(currentUser.id)}
               className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition shadow"
             >
-              Save Changes
+              {currentUser.id ? 'Profile editing unavailable' : 'Save Changes'}
             </button>
           </div>
         </form>
@@ -211,6 +215,7 @@ export const SecurityApiSettings: React.FC = () => {
 
         {/* Change Password */}
         <form onSubmit={handleChangePassword} className="space-y-4 pb-6 border-b border-gray-100">
+          <p className="rounded-lg border border-amber-800 bg-amber-950 px-3 py-2 text-xs text-amber-200">Password changes aren’t available yet. Submitting will not change your password.</p>
           <span className="text-xs font-bold text-slate-900 block">Change Password</span>
 
           <div className="space-y-3">
@@ -283,9 +288,10 @@ export const SecurityApiSettings: React.FC = () => {
           <div className="flex justify-end pt-2">
             <button
               type="submit"
+              disabled={Boolean(currentUser.id)}
               className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition shadow"
             >
-              Update Password
+              Change password is not available
             </button>
           </div>
         </form>
@@ -294,23 +300,14 @@ export const SecurityApiSettings: React.FC = () => {
         <div className="flex items-center justify-between p-4 bg-gray-50 rounded-xl border border-gray-200">
           <div>
             <span className="text-xs font-bold text-slate-900 block">Two-Factor Authentication (2FA)</span>
-            <span className="text-[11px] text-slate-500">
-              Status: {is2FaEnabled ? 'Enabled (Authenticator App)' : 'Not Enabled'}
-            </span>
+              <span className="text-[11px] text-slate-500">Not available yet</span>
           </div>
           <button
             type="button"
-            onClick={() => {
-              setIs2FaEnabled(!is2FaEnabled);
-              showToast(is2FaEnabled ? '2FA disabled.' : '2FA enabled successfully.');
-            }}
-            className={`px-4 py-2 rounded-xl text-xs font-semibold transition shadow select-none ${
-              is2FaEnabled
-                ? 'bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200'
-                : 'bg-slate-900 hover:bg-slate-800 text-white'
-            }`}
+              disabled
+            className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-800 text-slate-500 border border-slate-700 cursor-not-allowed"
           >
-            {is2FaEnabled ? 'Disable 2FA' : 'Enable 2FA'}
+            Not available
           </button>
         </div>
       </div>

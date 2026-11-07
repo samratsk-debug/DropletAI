@@ -11,6 +11,18 @@ export interface AuthSession {
   role: string;
 }
 
+export interface OrganisationSummary {
+  organisationId: string;
+  organisationName: string;
+  role: string;
+}
+
+export interface CurrentUserProfile {
+  id: string;
+  fullName: string;
+  email: string;
+}
+
 export interface ApiBrand {
   id: string;
   name: string;
@@ -35,6 +47,8 @@ export interface ApiFact {
   content: string;
   source?: string | null;
   verificationStatus: string;
+  approvedByEmail?: string | null;
+  createdAt?: string;
 }
 
 export interface ApiSubmission {
@@ -78,6 +92,16 @@ export interface ApiDocument {
   createdAt: string;
 }
 
+export interface ApiKnowledge {
+  organisationId: string;
+  brandId?: string | null;
+  brandName?: string | null;
+  guidelines: ApiGuideline[];
+  approvedFacts: ApiFact[];
+  documents: ApiDocument[];
+  documentSnippets: string[];
+}
+
 export class ApiError extends Error {
   constructor(message: string, public readonly status: number) {
     super(message);
@@ -119,6 +143,9 @@ async function request<T>(path: string, init: RequestInit = {}): Promise<T> {
 
   if (response.status === 204) return undefined as T;
   const contentType = response.headers.get('content-type') || '';
+  if (response.ok && (contentType.startsWith('application/octet-stream') || contentType.startsWith('application/pdf'))) {
+    return await response.blob() as T;
+  }
   const payload = contentType.includes('application/json') ? await response.json() : await response.text();
   if (!response.ok) {
     const message = typeof payload === 'string'
@@ -143,10 +170,16 @@ export const api = {
     request<AuthSession>('/api/auth/signup', json('POST', body)),
   login: (body: { email: string; password: string }) =>
     request<AuthSession>('/api/auth/login', json('POST', body)),
-  getMe: () => request<{ id: string; fullName: string; email: string }>('/api/users/me'),
-  getOrganisations: () => request<Array<{ organisationId: string; organisationName: string; role: string }>>('/api/organisations'),
-  getOrganisation: (id: string) => request<{ organisationId: string; organisationName: string; role: string }>(`/api/organisations/${id}`),
-  createOrganisation: (name: string) => request<{ organisationId: string; organisationName: string; role: string }>('/api/organisations', json('POST', { name })),
+  firebaseSignIn: (body: { idToken: string; fullName?: string; organisationName?: string }) =>
+    request<AuthSession>('/api/auth/firebase', json('POST', body)),
+  getMyOrganisation: () => request<OrganisationSummary>('/api/organisations/me'),
+  getOrganisations: () => request<OrganisationSummary[]>('/api/organisations'),
+  getOrganisation: (id: string) => request<OrganisationSummary>(`/api/organisations/${id}`),
+  createOrganisation: (name: string) => request<OrganisationSummary>('/api/organisations', json('POST', { name })),
+  updateOrganisation: (id: string, name: string) => request<OrganisationSummary>(`/api/organisations/${id}`, json('PUT', { name })),
+  getMe: () => request<CurrentUserProfile>('/api/users/me'),
+  getOrganisationMemberships: () => request<OrganisationSummary[]>('/api/organisations'),
+  getCurrentOrganisation: () => request<OrganisationSummary>('/api/organisations/me'),
   getBrands: (orgId: string) => request<ApiBrand[]>(`/api/organisations/${orgId}/brands`),
   createBrand: (orgId: string, body: { name: string; description?: string }) => request<ApiBrand>(`/api/organisations/${orgId}/brands`, json('POST', body)),
   updateBrand: (orgId: string, brandId: string, body: { name: string; description?: string }) => request<ApiBrand>(`/api/organisations/${orgId}/brands/${brandId}`, json('PUT', body)),
@@ -159,7 +192,7 @@ export const api = {
   createFact: (orgId: string, body: { title: string; content: string; source?: string; brandId?: string }) => request<ApiFact>(`/api/organisations/${orgId}/facts`, json('POST', body)),
   setFactStatus: (orgId: string, factId: string, status: string) => request<ApiFact>(`/api/organisations/${orgId}/facts/${factId}/status?status=${encodeURIComponent(status)}`, { method: 'PATCH' }),
   deleteFact: (orgId: string, factId: string) => request<void>(`/api/organisations/${orgId}/facts/${factId}`, { method: 'DELETE' }),
-  getKnowledge: (orgId: string, brandId?: string) => request<unknown>(`/api/organisations/${orgId}/knowledge${brandId ? `?brandId=${encodeURIComponent(brandId)}` : ''}`),
+  getKnowledge: (orgId: string, brandId?: string) => request<ApiKnowledge>(`/api/organisations/${orgId}/knowledge${brandId ? `?brandId=${encodeURIComponent(brandId)}` : ''}`),
   uploadDocument: (orgId: string, file: File, brandId?: string) => {
     const form = new FormData();
     form.append('file', file);
@@ -167,6 +200,8 @@ export const api = {
     return request<ApiDocument>(`/api/organisations/${orgId}/documents`, { method: 'POST', body: form });
   },
   getDocuments: (orgId: string, brandId?: string) => request<ApiDocument[]>(`/api/organisations/${orgId}/documents${brandId ? `?brandId=${encodeURIComponent(brandId)}` : ''}`),
+  downloadDocument: (orgId: string, documentId: string) => request<Blob>(`/api/organisations/${orgId}/documents/${documentId}/download`).then(blob => blob),
+  deleteDocument: (orgId: string, documentId: string) => request<void>(`/api/organisations/${orgId}/documents/${documentId}`, { method: 'DELETE' }),
   getSubmissions: (orgId: string, brandId?: string) => request<ApiSubmission[]>(`/api/organisations/${orgId}/content${brandId ? `?brandId=${encodeURIComponent(brandId)}` : ''}`),
   getSubmission: (orgId: string, id: string) => request<ApiSubmission>(`/api/organisations/${orgId}/content/${id}`),
   createSubmission: (orgId: string, body: { brandId: string; title: string; contentType: string; content: string; reviewerId?: string }) => request<ApiSubmission>(`/api/organisations/${orgId}/content`, json('POST', body)),

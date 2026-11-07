@@ -15,10 +15,11 @@ import {
   ChevronDown,
   UploadCloud,
   MessageSquare,
-  Send
+  Send,
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { ChatMessage } from '../types';
+import { ThemeToggle } from './ThemeToggle';
 
 export const Navbar: React.FC = () => {
   const {
@@ -50,18 +51,19 @@ export const Navbar: React.FC = () => {
   // Navigation order: Home -> Enterprise Analytics -> Analytics Graph -> AI Brand Review -> Team & RBAC -> Brand Guidelines -> Approval Queue -> Settings
   const baseNavItems = [
     { to: `/${selectedBrand.slug}/Home`, label: 'Home', icon: Home, ownerOnly: false },
-    { to: `/${selectedBrand.slug}/EnterpriseAnalytics`, label: 'Enterprise Analytics', icon: Globe2, ownerOnly: true },
-    { to: `/${selectedBrand.slug}/AnalyticsGraph`, label: 'Analytics Graph', icon: BarChart3, ownerOnly: false },
-    { to: `/${selectedBrand.slug}/AIBrandReview`, label: 'AI Brand Review', icon: ClipboardCheck, ownerOnly: false },
-    { to: `/${selectedBrand.slug}/Team`, label: 'Team & RBAC', icon: Users, ownerOnly: false },
-    { to: `/${selectedBrand.slug}/BrandGuidelines`, label: 'Brand Guidelines', icon: BookOpen, ownerOnly: false },
-    { to: `/${selectedBrand.slug}/ApprovalQueue`, label: 'Approval Queue', icon: CheckSquare, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/EnterpriseAnalytics`, label: 'Overview', icon: Globe2, ownerOnly: true },
+    { to: `/${selectedBrand.slug}/AnalyticsGraph`, label: 'Analytics', icon: BarChart3, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/AIBrandReview`, label: 'AI review', icon: ClipboardCheck, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/Team`, label: 'Team', icon: Users, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/BrandGuidelines`, label: 'Guidelines', icon: BookOpen, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/KnowledgeBase`, label: 'Knowledge', icon: BookOpen, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/ApprovalQueue`, label: 'Reviews', icon: CheckSquare, ownerOnly: false },
     { to: `/${selectedBrand.slug}/Settings`, label: 'Settings', icon: Settings, ownerOnly: false },
   ];
 
   const employeeNavItems = isOwner ? [] : [
-    { to: `/${selectedBrand.slug}/Upload`, label: 'Upload & Audit', icon: UploadCloud, ownerOnly: false },
-    { to: `/${selectedBrand.slug}/MyPerformance`, label: 'My Performance', icon: Sparkles, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/Upload`, label: 'Submit', icon: UploadCloud, ownerOnly: false },
+    { to: `/${selectedBrand.slug}/MyPerformance`, label: 'My work', icon: Sparkles, ownerOnly: false },
   ];
 
   const allNavs = selectedBrand.id ? [
@@ -116,8 +118,8 @@ export const Navbar: React.FC = () => {
                   <Droplet className="w-6 h-6" />
                 </div>
                 <div>
-                  <span className="text-lg font-bold tracking-tight text-slate-900 block leading-none">Droplet AI</span>
-                  <span className="text-[10px] uppercase tracking-widest text-blue-600 font-semibold">Brand Governance</span>
+                  <span className="text-lg font-bold tracking-tight text-slate-900 block leading-none">droplet<span className="font-medium text-slate-500">AI</span></span>
+                  <span className="text-[10px] uppercase tracking-widest text-slate-500 font-semibold">Brand workspace</span>
                 </div>
               </div>
 
@@ -152,8 +154,10 @@ export const Navbar: React.FC = () => {
                 className="px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200 rounded-lg text-xs font-semibold transition flex items-center space-x-1.5 shadow-sm select-none"
               >
                 <MessageSquare className="w-4 h-4 text-blue-600" />
-                <span className="hidden sm:inline">AI Assistant</span>
+                <span className="hidden sm:inline">Assistant</span>
               </button>
+
+              <ThemeToggle compact />
 
               <div className="hidden lg:flex items-center space-x-3 bg-gray-50 border border-gray-200 rounded-lg px-3 py-1.5">
                 {currentUser.avatar ? (
@@ -173,7 +177,7 @@ export const Navbar: React.FC = () => {
                 type="button"
                 onClick={() => {
                   setIsAuthenticated(false);
-                  navigate('/login');
+                  navigate('/');
                 }}
                 className="p-2 text-slate-500 hover:text-red-600 hover:bg-gray-100 rounded-lg transition"
                 title="Sign Out"
@@ -184,7 +188,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           {/* Navigation Bar Tabs */}
-          <nav className="flex space-x-1 overflow-x-auto no-scrollbar pt-2 border-t border-gray-100">
+          <nav className="app-nav-tabs flex space-x-1 overflow-x-auto no-scrollbar pt-2 border-t border-gray-100" aria-label="Workspace navigation">
             {allNavs.map((item) => {
               const Icon = item.icon;
               return (
@@ -192,9 +196,9 @@ export const Navbar: React.FC = () => {
                   key={item.to}
                   to={item.to}
                   className={({ isActive }) =>
-                    `flex items-center space-x-2 px-3.5 pb-2 text-xs font-semibold whitespace-nowrap transition select-none ${
+                    `app-nav-link flex items-center space-x-2 px-3.5 text-xs whitespace-nowrap select-none ${
                       isActive
-                        ? 'text-slate-900 font-semibold border-b-2 border-slate-900'
+                        ? 'is-active'
                         : 'text-slate-600 hover:text-slate-900'
                     }`
                   }

@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { Users, Shield, Plus } from 'lucide-react';
+import { Users, Shield, Plus, Trash2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import { TeamMember } from '../types';
 
 export const TeamManagement: React.FC = () => {
-  const { team, addTeamMember, updateTeamMemberRole, currentUser } = useApp();
+  const { team, addTeamMember, updateTeamMemberRole, removeTeamMember, currentUser } = useApp();
   const [showAdd, setShowAdd] = useState(false);
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<TeamMember['role']>('Content Creator');
@@ -12,6 +12,7 @@ export const TeamManagement: React.FC = () => {
   const [saving, setSaving] = useState(false);
 
   const isOwner = currentUser.role === 'Brand Owner / Admin';
+  const canAddMembers = isOwner || currentUser.role === 'Admin';
   const canManageMembers = isOwner;
 
   const handleAddMember = async (event: React.FormEvent) => {
@@ -32,7 +33,8 @@ export const TeamManagement: React.FC = () => {
   };
 
   const roleDescriptions: Record<TeamMember['role'], string> = {
-    'Brand Owner / Admin': 'Full administrative control, master guideline editing, team permissions, and global analytics.',
+    'Brand Owner / Admin': 'Organisation ownership, member permissions, guideline editing, and workspace analytics.',
+    'Admin': 'Can add team members and create brands. Owners control role changes and removals.',
     'Marketing Manager': 'Departmental campaign orchestration, audit queue triage, and content sign-off.',
     'Content Creator': 'Drafting press releases, ads, whitepapers, and submitting collateral for automated AI audits.',
     'Graphic Designer': 'Visual asset uploading, OpenCV logo clearance verification, and banner compliance.',
@@ -49,15 +51,15 @@ export const TeamManagement: React.FC = () => {
               <Users className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Team Management & Role-Based Access Control</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Team</h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isOwner ? 'Manage enterprise employee access and permissions.' : 'Team directory & RBAC inspector (Read-Only).'}
+                {isOwner ? 'Manage your team and their roles.' : 'View your team and roles.'}
               </p>
             </div>
           </div>
         </div>
 
-        {canManageMembers && (
+        {canAddMembers && (
           <button type="button" onClick={() => setShowAdd(true)} className="mt-4 md:mt-0 px-4 py-2.5 bg-slate-900 text-white rounded-xl text-xs font-semibold flex items-center gap-2">
             <Plus className="w-4 h-4" /> Add registered user
           </button>
@@ -99,8 +101,8 @@ export const TeamManagement: React.FC = () => {
           <tbody className="divide-y divide-gray-200 text-slate-800">
             {team.map((member) => {
               const isTargetAdmin = member.role === 'Brand Owner / Admin';
-              // Owner and admin membership cannot be changed through the member role endpoint.
-              const canModify = canManageMembers && !isTargetAdmin;
+              const isSelf = member.email.toLowerCase() === currentUser.email.toLowerCase();
+              const canModify = canManageMembers && !isSelf;
 
               return (
                 <tr key={member.id} className="hover:bg-gray-50 transition">
@@ -128,19 +130,28 @@ export const TeamManagement: React.FC = () => {
                   </td>
                   <td className="px-6 py-4 text-right">
                     {canModify ? (
-                      <select
-                        value={member.role === 'Brand Owner / Admin' ? 'ADMIN' : member.role}
-                        onChange={(e) => void updateTeamMemberRole(member.id, e.target.value as TeamMember['role']).catch(() => undefined)}
-                        className="bg-gray-50 border border-gray-300 text-xs text-slate-800 rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer font-medium"
-                      >
-                        <option value="ADMIN">Admin</option>
-                        <option value="Marketing Manager">Marketing Manager</option>
-                        <option value="Content Creator">Content Creator</option>
-                        <option value="Authorised Reviewer">Authorised Reviewer</option>
-                      </select>
+                      <div className="inline-flex items-center gap-2">
+                        <select
+                          value={member.role === 'Brand Owner / Admin' ? 'ADMIN' : member.role}
+                          onChange={(e) => {
+                            const roleValue = e.target.value;
+                            const mapped = roleValue === 'ADMIN' ? 'Brand Owner / Admin' : roleValue as TeamMember['role'];
+                            void updateTeamMemberRole(member.id, mapped).catch(() => undefined);
+                          }}
+                          className="bg-gray-50 border border-gray-300 text-xs text-slate-800 rounded-lg px-2.5 py-1 focus:outline-none cursor-pointer font-medium"
+                        >
+                          {currentUser.role === 'Brand Owner / Admin' && <option value="ADMIN">Admin</option>}
+                          <option value="Marketing Manager">Marketing Manager</option>
+                          <option value="Content Creator">Content Creator</option>
+                          <option value="Authorised Reviewer">Authorised Reviewer</option>
+                        </select>
+                        <button type="button" onClick={() => void removeTeamMember(member.id).catch(() => undefined)} className="p-1.5 rounded-lg text-rose-400 hover:text-rose-300 hover:bg-rose-950" aria-label={`Remove ${member.name}`} title="Remove from organisation">
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
                     ) : (
                       <span className="text-[11px] text-slate-400 italic bg-gray-100 px-2.5 py-1 rounded-md border border-gray-200">
-                        {isTargetAdmin ? '🔒 Protected Admin' : '🔒 Read-Only'}
+                        {isSelf ? '🔒 Your own membership' : '🔒 Read-Only'}
                       </span>
                     )}
                   </td>
@@ -154,9 +165,9 @@ export const TeamManagement: React.FC = () => {
         <div className="fixed inset-0 z-50 bg-black/40 flex items-center justify-center p-4">
           <form onSubmit={handleAddMember} className="w-full max-w-md bg-white rounded-2xl p-6 space-y-4 shadow-xl">
             <h2 className="text-lg font-bold text-slate-900">Add an existing account</h2>
-            <p className="text-xs text-slate-600">The backend only adds users who have already registered. New account invitations are not available yet.</p>
+            <p className="text-xs text-slate-600">Add people who already have a Droplet AI account.</p>
             {formError && <p role="alert" className="rounded-lg bg-rose-50 border border-rose-200 px-3 py-2 text-xs text-rose-700">{formError}</p>}
-            <label className="block text-xs font-medium text-slate-700">Account email
+              <label className="block text-xs font-medium text-slate-700">Account email
               <input required type="email" value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full bg-gray-50 border border-gray-300 rounded-lg px-3 py-2 text-sm" />
             </label>
             <label className="block text-xs font-medium text-slate-700">Role
@@ -164,7 +175,7 @@ export const TeamManagement: React.FC = () => {
                 <option value="Content Creator">Content Creator</option>
                 <option value="Marketing Manager">Marketing Manager</option>
                 <option value="Authorised Reviewer">Authorised Reviewer</option>
-                <option value="Brand Owner / Admin" disabled>Admin (not assignable here)</option>
+                {currentUser.role === 'Brand Owner / Admin' && <option value="Brand Owner / Admin">Admin</option>}
               </select>
             </label>
             <div className="flex justify-end gap-2">

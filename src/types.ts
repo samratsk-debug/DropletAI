@@ -47,7 +47,7 @@ export interface TeamMember {
   id: string;
   name: string;
   email: string;
-  role: 'Brand Owner / Admin' | 'Marketing Manager' | 'Content Creator' | 'Graphic Designer' | 'Authorised Reviewer';
+  role: 'Brand Owner / Admin' | 'Admin' | 'Marketing Manager' | 'Content Creator' | 'Graphic Designer' | 'Authorised Reviewer';
   department: string;
   status: 'active' | 'invited' | 'suspended';
   avatar: string;

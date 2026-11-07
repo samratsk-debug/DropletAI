@@ -31,7 +31,11 @@ export const ContentAuditReport: React.FC = () => {
   };
 
   const handleSignOff = (status: 'Approved' | 'Changes Requested' | 'Rejected', note?: string) => {
-    void updateContentStatus(content.id, status, note || `Review sign-off by reviewer: ${status}`)
+    if (status !== 'Approved' && !note?.trim() && !rejectNote.trim()) {
+      showToast('Please provide reviewer feedback before requesting changes or rejecting this item.');
+      return;
+    }
+    void updateContentStatus(content.id, status, note || rejectNote)
       .then(() => {
         showToast(`Collateral status updated to ${status}`);
         setShowRejectModal(false);

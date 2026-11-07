@@ -20,20 +20,8 @@ export const ReviewerQueue: React.FC = () => {
     return c.status === filterStatus;
   });
 
-  const handleShareToPlatform = (platform: 'LinkedIn' | 'Twitter' | 'Facebook' | 'Instagram') => {
-    const text = encodeURIComponent(publishModalContent?.contentBody || 'Droplet AI Approved Collateral');
-    let url = '';
-    if (platform === 'Twitter') {
-      url = `https://twitter.com/intent/tweet?text=${text}`;
-    } else if (platform === 'LinkedIn') {
-      url = `https://www.linkedin.com/sharing/share-offsite/?url=https://dropletai.domain`;
-    } else if (platform === 'Facebook') {
-      url = `https://www.facebook.com/sharer/sharer.php?u=https://dropletai.domain`;
-    } else {
-      url = `https://instagram.com`;
-    }
-    window.open(url, '_blank');
-    showToast(`Launched ${platform} pre-filled publishing intent!`);
+  const handleShareToPlatform = (_platform: 'LinkedIn' | 'Twitter' | 'Facebook' | 'Instagram') => {
+    showToast('Publishing isn’t set up yet. No content was published.');
   };
 
   return (
@@ -46,8 +34,8 @@ export const ReviewerQueue: React.FC = () => {
               <CheckSquare className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Reviewer Portal & Approval Queue</h1>
-              <p className="text-xs text-slate-500 mt-0.5">Authorised reviewer triage queue for sign-off, collateral inspection, and one-click social media publishing.</p>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Review queue</h1>
+              <p className="text-xs text-slate-500 mt-0.5">Review findings and move work forward.</p>
             </div>
           </div>
         </div>

@@ -57,6 +57,11 @@ export const BrandSetup: React.FC = () => {
     setTimeout(() => setToast(null), 3000);
   };
 
+  const saveGuidelines = async (updater: Parameters<typeof updateGuidelines>[0], successMessage: string) => {
+    const saved = await updateGuidelines(updater);
+    if (saved) showToast(successMessage);
+  };
+
   // Spec handlers
   const handleOpenAddSpec = () => {
     if (!isOwner) return;
@@ -79,14 +84,15 @@ export const BrandSetup: React.FC = () => {
     setShowSpecModal(true);
   };
 
-  const handleSaveSpec = (e: React.FormEvent) => {
+  const handleSaveSpec = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOwner) return;
     const allowed = specForm.allowedClaims.split(',').map(s => s.trim()).filter(Boolean);
     const forbidden = specForm.forbiddenClaims.split(',').map(s => s.trim()).filter(Boolean);
 
+    let saved = false;
     if (editingSpecId) {
-      updateGuidelines(prev => ({
+      saved = await updateGuidelines(prev => ({
         ...prev,
         productSpecs: prev.productSpecs.map(s => s.id === editingSpecId ? {
           ...s,
@@ -99,7 +105,6 @@ export const BrandSetup: React.FC = () => {
           maxBatteryLifeHours: 24
         } : s)
       }));
-      showToast('Product specification updated successfully');
     } else {
       const newSpec = {
         id: 'spec-' + Date.now(),
@@ -111,16 +116,14 @@ export const BrandSetup: React.FC = () => {
         maxBatteryLifeHours: 24,
         waterResistanceRating: specForm.waterResistanceRating
       };
-      updateGuidelines(prev => ({ ...prev, productSpecs: [...prev.productSpecs, newSpec] }));
-      showToast('New product specification added');
+      saved = await updateGuidelines(prev => ({ ...prev, productSpecs: [...prev.productSpecs, newSpec] }));
     }
-    setShowSpecModal(false);
+    if (saved) { showToast('Product specification saved.'); setShowSpecModal(false); }
   };
 
   const handleDeleteSpec = (id: string) => {
     if (!isOwner) return;
-    updateGuidelines(prev => ({ ...prev, productSpecs: prev.productSpecs.filter(s => s.id !== id) }));
-    showToast('Specification deleted');
+    void saveGuidelines(prev => ({ ...prev, productSpecs: prev.productSpecs.filter(s => s.id !== id) }), 'Specification deleted.');
   };
 
   // Terminology handlers
@@ -138,11 +141,12 @@ export const BrandSetup: React.FC = () => {
     setShowTermModal(true);
   };
 
-  const handleSaveTerm = (e: React.FormEvent) => {
+  const handleSaveTerm = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOwner) return;
+    let saved = false;
     if (editingTermId) {
-      updateGuidelines(prev => ({
+      saved = await updateGuidelines(prev => ({
         ...prev,
         terminologyRules: prev.terminologyRules.map(tr => tr.id === editingTermId ? {
           ...tr,
@@ -153,7 +157,6 @@ export const BrandSetup: React.FC = () => {
           context: termForm.context
         } : tr)
       }));
-      showToast('Terminology rule updated');
     } else {
       const newTr = {
         id: 'term-' + Date.now(),
@@ -163,20 +166,18 @@ export const BrandSetup: React.FC = () => {
         category: termForm.category,
         context: termForm.context
       };
-      updateGuidelines(prev => ({ ...prev, terminologyRules: [...prev.terminologyRules, newTr] }));
-      showToast('Terminology rule added');
+      saved = await updateGuidelines(prev => ({ ...prev, terminologyRules: [...prev.terminologyRules, newTr] }));
     }
-    setShowTermModal(false);
+    if (saved) { showToast('Terminology rule saved.'); setShowTermModal(false); }
   };
 
   const handleDeleteTerm = (id: string) => {
     if (!isOwner) return;
-    updateGuidelines(prev => ({ ...prev, terminologyRules: prev.terminologyRules.filter(t => t.id !== id) }));
-    showToast('Terminology rule removed');
+    void saveGuidelines(prev => ({ ...prev, terminologyRules: prev.terminologyRules.filter(t => t.id !== id) }), 'Terminology rule removed.');
   };
 
   // Color Palette handlers
-  const handleAddColor = (e: React.FormEvent) => {
+  const handleAddColor = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOwner) return;
     const newColor = {
@@ -188,15 +189,13 @@ export const BrandSetup: React.FC = () => {
       gradientAngle: colorForm.gradientAngle,
       role: colorForm.role
     };
-    updateGuidelines(prev => ({ ...prev, colorPalette: [...prev.colorPalette, newColor] }));
-    setShowColorModal(false);
-    showToast('Color swatch added to palette');
+    const saved = await updateGuidelines(prev => ({ ...prev, colorPalette: [...prev.colorPalette, newColor] }));
+    if (saved) { setShowColorModal(false); showToast('Color swatch saved.'); }
   };
 
   const handleDeleteColor = (id: string) => {
     if (!isOwner) return;
-    updateGuidelines(prev => ({ ...prev, colorPalette: prev.colorPalette.filter(c => c.id !== id) }));
-    showToast('Color swatch removed');
+    void saveGuidelines(prev => ({ ...prev, colorPalette: prev.colorPalette.filter(c => c.id !== id) }), 'Color swatch removed.');
   };
 
   // Visual Asset Edit / Add handlers
@@ -213,11 +212,11 @@ export const BrandSetup: React.FC = () => {
     setShowAssetModal(true);
   };
 
-  const handleSaveAsset = (e: React.FormEvent) => {
+  const handleSaveAsset = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!isOwner) return;
     if (editingAssetId) {
-      updateGuidelines(prev => ({
+      const saved = await updateGuidelines(prev => ({
         ...prev,
         visualAssets: prev.visualAssets.map(va => va.id === editingAssetId ? {
           ...va,
@@ -228,18 +227,10 @@ export const BrandSetup: React.FC = () => {
           url: assetForm.url
         } : va)
       }));
-      showToast('Visual asset updated successfully');
+      if (!saved) return;
+      showToast('Visual asset details saved.');
     } else {
-      const newVa = {
-        id: 'va-' + Date.now(),
-        name: assetForm.name || 'New Asset',
-        type: assetForm.type,
-        url: assetForm.url,
-        minClearancePx: assetForm.minClearancePx,
-        usageGuidelines: assetForm.usageGuidelines
-      };
-      updateGuidelines(prev => ({ ...prev, visualAssets: [...prev.visualAssets, newVa] }));
-      showToast('Visual asset uploaded successfully');
+      showToast('Image changes aren’t supported here. No changes were saved.');
     }
     setShowAssetModal(false);
   };
@@ -254,9 +245,9 @@ export const BrandSetup: React.FC = () => {
               <BookOpen className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Brand Guidelines & Knowledge Base</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Brand guidelines</h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                {isOwner ? 'Centralized repository for verified specs, terminology rules, and visual assets.' : 'Read-only inspection repository for brand governance rules.'}
+                {isOwner ? 'Manage the rules and facts your team uses.' : 'Review the rules and facts for this brand.'}
               </p>
             </div>
           </div>
@@ -542,7 +533,7 @@ export const BrandSetup: React.FC = () => {
             {isOwner && (
               <button
                 type="button"
-                onClick={() => showToast('Tone calibration updated successfully')}
+                onClick={() => showToast('Tone guidelines saved.')}
                 className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition shadow select-none"
               >
                 Save Tone Guidelines
@@ -557,31 +548,7 @@ export const BrandSetup: React.FC = () => {
         <div className="space-y-6">
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-slate-900">Visual Assets & Logos</h2>
-            {isOwner && (
-              <label className="px-4 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold transition flex items-center space-x-1.5 cursor-pointer shadow select-none">
-                <Plus className="w-4 h-4" />
-                <span>Upload New Asset</span>
-                <input
-                  type="file"
-                  className="hidden"
-                  onChange={(e) => {
-                    if (e.target.files && e.target.files[0]) {
-                      const file = e.target.files[0];
-                      const newAsset = {
-                        id: 'va-' + Date.now(),
-                        name: file.name,
-                        type: 'logo' as const,
-                        url: URL.createObjectURL(file),
-                        minClearancePx: 24,
-                        usageGuidelines: 'Uploaded brand asset file.'
-                      };
-                      updateGuidelines(prev => ({ ...prev, visualAssets: [...prev.visualAssets, newAsset] }));
-                      showToast(`Successfully uploaded asset: ${file.name}`);
-                    }
-                  }}
-                />
-              </label>
-            )}
+                {isOwner && <span className="text-xs text-slate-500">Upload logo and reference files in Knowledge.</span>}
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
@@ -614,8 +581,7 @@ export const BrandSetup: React.FC = () => {
                     <button
                       type="button"
                       onClick={() => {
-                        updateGuidelines(prev => ({ ...prev, visualAssets: prev.visualAssets.filter(a => a.id !== asset.id) }));
-                        showToast('Asset deleted from library');
+                        showToast('Asset removal isn’t available yet. No changes were made.');
                       }}
                       className="px-3 py-1.5 bg-gray-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 rounded-lg text-xs font-semibold transition flex items-center space-x-1"
                     >
@@ -896,7 +862,7 @@ export const BrandSetup: React.FC = () => {
                   accept="image/*"
                   onChange={(e) => {
                     if (e.target.files && e.target.files[0]) {
-                      setAssetForm({ ...assetForm, url: URL.createObjectURL(e.target.files[0]) });
+                      showToast('Image updates aren’t supported yet. Upload the new file to Knowledge.');
                     }
                   }}
                   className="w-full bg-gray-50 border border-gray-300 rounded-xl px-3 py-2 text-xs text-slate-700 file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-slate-900 file:text-white cursor-pointer"
@@ -905,7 +871,7 @@ export const BrandSetup: React.FC = () => {
 
               <div className="flex justify-end space-x-3 pt-4 border-t border-gray-200">
                 <button type="button" onClick={() => setShowAssetModal(false)} className="px-4 py-2 bg-gray-100 hover:bg-gray-200 text-slate-700 rounded-xl text-xs font-medium select-none">Cancel</button>
-                <button type="submit" className="px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-semibold shadow select-none">Save Asset</button>
+                <button type="submit" disabled={!editingAssetId} className="px-4 py-2 bg-slate-900 hover:bg-slate-800 disabled:opacity-50 text-white rounded-xl text-xs font-semibold shadow select-none">Save Asset Details</button>
               </div>
             </form>
           </div>

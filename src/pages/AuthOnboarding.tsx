@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ShieldCheck, Lock, Mail, User, ArrowRight, Building2, CheckCircle2 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
+import { ThemeToggle } from '../components/ThemeToggle';
 
 export const AuthOnboarding: React.FC = () => {
   const [isLogin, setIsLogin] = useState(true);
@@ -28,31 +29,32 @@ export const AuthOnboarding: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-[#0b0f19] flex items-center justify-center p-4">
-      <div className="w-full max-w-md bg-slate-900 border border-slate-800 rounded-2xl shadow-2xl p-8">
+    <div className="min-h-screen bg-gray-50 text-slate-900 flex items-center justify-center p-4">
+      <div className="relative w-full max-w-md bg-white border border-gray-200 rounded-2xl shadow-2xl p-8">
+        <div className="absolute right-4 top-4"><ThemeToggle compact /></div>
         {/* Header */}
         <div className="text-center mb-8">
           <div className="w-14 h-14 bg-indigo-600 rounded-2xl mx-auto flex items-center justify-center text-white shadow-xl mb-4">
             <ShieldCheck className="w-8 h-8" />
           </div>
-          <h1 className="text-2xl font-bold text-white tracking-tight">Droplet AI</h1>
-          <p className="text-xs text-slate-400 mt-1 uppercase tracking-wider font-semibold">Enterprise Brand Governance Platform</p>
+          <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Droplet AI</h1>
+          <p className="text-xs text-slate-600 mt-1 uppercase tracking-wider font-semibold">Enterprise Brand Governance Platform</p>
         </div>
 
         {step === 'auth' ? (
           <div>
-            <div className="flex bg-slate-950 p-1 rounded-xl mb-6 border border-slate-800">
+            <div className="flex bg-gray-100 p-1 rounded-xl mb-6 border border-gray-200">
               <button
                 type="button"
                 onClick={() => setIsLogin(true)}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition ${isLogin ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition ${isLogin ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 Sign In
               </button>
               <button
                 type="button"
                 onClick={() => setIsLogin(false)}
-                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition ${!isLogin ? 'bg-indigo-600 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}
+                className={`flex-1 py-2 text-xs font-semibold rounded-lg transition ${!isLogin ? 'bg-indigo-600 text-white shadow' : 'text-slate-600 hover:text-slate-900'}`}
               >
                 Organization Signup
               </button>
@@ -60,7 +62,7 @@ export const AuthOnboarding: React.FC = () => {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Corporate Email</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Corporate Email</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                     <Mail className="w-4 h-4" />
@@ -70,14 +72,14 @@ export const AuthOnboarding: React.FC = () => {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
                     placeholder="name@company.com"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Password</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Password</label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                     <Lock className="w-4 h-4" />
@@ -87,7 +89,7 @@ export const AuthOnboarding: React.FC = () => {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                    className="w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
                     placeholder="••••••••"
                   />
                 </div>
@@ -95,7 +97,7 @@ export const AuthOnboarding: React.FC = () => {
 
               {!isLogin && (
                 <div>
-                  <label className="block text-xs font-medium text-slate-300 mb-1">Full Name</label>
+                  <label className="block text-xs font-medium text-slate-700 mb-1">Full Name</label>
                   <div className="relative">
                     <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-slate-500">
                       <User className="w-4 h-4" />
@@ -104,7 +106,7 @@ export const AuthOnboarding: React.FC = () => {
                       type="text"
                       required
                       defaultValue="Victoria Vance"
-                      className="w-full bg-slate-950 border border-slate-700 rounded-xl pl-10 pr-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                      className="w-full bg-white border border-gray-300 rounded-xl pl-10 pr-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
                       placeholder="Victoria Vance"
                     />
                   </div>
@@ -122,26 +124,26 @@ export const AuthOnboarding: React.FC = () => {
           </div>
         ) : (
           <div className="space-y-6">
-            <div className="bg-slate-950 border border-slate-800 rounded-xl p-4 text-center">
+            <div className="bg-gray-50 border border-gray-200 rounded-xl p-4 text-center">
               <Building2 className="w-10 h-10 text-indigo-400 mx-auto mb-2" />
-              <h2 className="text-sm font-semibold text-white">Create Enterprise Organization</h2>
-              <p className="text-xs text-slate-400 mt-1">Set up your brand guidelines database and secure audit gateway.</p>
+              <h2 className="text-sm font-semibold text-slate-900">Create Enterprise Organization</h2>
+              <p className="text-xs text-slate-600 mt-1">Set up your brand guidelines database and secure audit gateway.</p>
             </div>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Organization Name</label>
+                <label className="block text-xs font-medium text-slate-700 mb-1">Organization Name</label>
                 <input
                   type="text"
                   value={orgName}
                   onChange={(e) => setOrgName(e.target.value)}
-                  className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500"
+                  className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600"
                 />
               </div>
 
               <div>
-                <label className="block text-xs font-medium text-slate-300 mb-1">Industry Vertical</label>
-                <select className="w-full bg-slate-950 border border-slate-700 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo-500 cursor-pointer">
+                <label className="block text-xs font-medium text-slate-700 mb-1">Industry Vertical</label>
+                <select className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm text-slate-900 focus:outline-none focus:border-indigo-600 cursor-pointer">
                   <option>Consumer Electronics & Hardware</option>
                   <option>Enterprise Cloud & SaaS</option>
                   <option>Financial Services & Fintech</option>
@@ -161,8 +163,8 @@ export const AuthOnboarding: React.FC = () => {
           </div>
         )}
 
-        <div className="mt-8 pt-6 border-t border-slate-800 text-center">
-          <p className="text-xs text-slate-500">Secure JWT Session • Supabase Enterprise Vault • Gemini API Enabled</p>
+        <div className="mt-8 pt-6 border-t border-gray-200 text-center">
+          <p className="text-xs text-slate-600">Secure JWT Session • Gemini API Enabled</p>
         </div>
       </div>
     </div>

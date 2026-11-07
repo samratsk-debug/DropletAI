@@ -3,12 +3,7 @@ import {
   BarChart3,
   TrendingUp,
   ShieldCheck,
-  DollarSign,
   Award,
-  ArrowUpRight,
-  Filter,
-  CheckCircle2,
-  AlertTriangle
 } from 'lucide-react';
 import { useApp } from '../context/AppContext';
 import {
@@ -25,22 +20,27 @@ import {
 } from 'recharts';
 
 export const AnalyticsGraph: React.FC = () => {
-  const { brands, selectedBrand, setSelectedBrandId } = useApp();
-  const [timeRange, setTimeRange] = useState<'4Q' | '8Q' | 'All'>('4Q');
+  const { brands, selectedBrand, contents, setSelectedBrandId } = useApp();
+  const [timeRange, setTimeRange] = useState<'30D' | '90D' | 'All'>('All');
   const [hoveredQuarter, setHoveredQuarter] = useState<string | null>(null);
 
-  // Comprehensive quarterly financial & brand value turnout data
-  const valuationData = [
-    { quarter: 'Q1 2025', brandValueM: 42.5, complianceScore: 88.0, riskMitigatedM: 8.2, flaggedAudits: 14, status: 'Stable' },
-    { quarter: 'Q2 2025', brandValueM: 48.0, complianceScore: 91.0, riskMitigatedM: 11.0, flaggedAudits: 9, status: 'Optimized' },
-    { quarter: 'Q3 2025', brandValueM: 54.2, complianceScore: 93.0, riskMitigatedM: 14.5, flaggedAudits: 7, status: 'Optimal' },
-    { quarter: 'Q4 2025', brandValueM: 61.0, complianceScore: 94.5, riskMitigatedM: 18.0, flaggedAudits: 5, status: 'Optimal' },
-    { quarter: 'Q1 2026', brandValueM: 68.5, complianceScore: 95.2, riskMitigatedM: 22.4, flaggedAudits: 4, status: 'Secured' },
-    { quarter: 'Q2 2026', brandValueM: 76.0, complianceScore: 96.8, riskMitigatedM: 27.1, flaggedAudits: 2, status: 'Master' },
-  ];
+  const brandContents = contents.filter(item => item.brandId === selectedBrand.id);
+  const sortedContents = [...brandContents].sort((a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+  const cutoff = timeRange === 'All' ? 0 : Date.now() - (timeRange === '30D' ? 30 : 90) * 24 * 60 * 60 * 1000;
+  const filteredContents = sortedContents.filter(item => !cutoff || new Date(item.createdAt).getTime() >= cutoff);
+  const valuationData = filteredContents.map(item => ({
+    quarter: new Date(item.createdAt).toLocaleDateString(),
+    complianceScore: item.complianceScore,
+    flaggedAudits: item.issues.length,
+    status: item.status
+  }));
+  const avgCompliance = valuationData.length ? Math.round(valuationData.reduce((sum, item) => sum + item.complianceScore, 0) / valuationData.length) : null;
+  const totalFindings = valuationData.reduce((sum, item) => sum + item.flaggedAudits, 0);
+  const approvedCount = filteredContents.filter(item => item.status === 'Approved').length;
+  const passRate = filteredContents.length ? Math.round(approvedCount / filteredContents.length * 100) : null;
 
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
+  <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center md:justify-between pb-6 border-b border-gray-200">
         <div>
@@ -49,9 +49,9 @@ export const AnalyticsGraph: React.FC = () => {
               <BarChart3 className="w-6 h-6" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Brand Valuation & Turnout Analytics</h1>
+              <h1 className="text-2xl font-bold text-slate-900 tracking-tight">Brand audit</h1>
               <p className="text-xs text-slate-500 mt-0.5">
-                Financial brand equity turnout, valuation multiplier, and compliance-to-capital mitigation tracking for {selectedBrand.name}.
+                Review results for {selectedBrand.name}.
               </p>
             </div>
           </div>
@@ -59,7 +59,7 @@ export const AnalyticsGraph: React.FC = () => {
 
         <div className="mt-4 md:mt-0 flex items-center space-x-3">
           {/* Brand Switcher */}
-          <select
+          {brands.length > 1 && <select
             value={selectedBrand.id}
             onChange={(e) => {
               const b = brands.find(x => x.id === e.target.value);
@@ -70,23 +70,23 @@ export const AnalyticsGraph: React.FC = () => {
             {brands.map(b => (
               <option key={b.id} value={b.id}>🏢 {b.name}</option>
             ))}
-          </select>
+          </select>}
 
           {/* Time Range Filter */}
           <div className="flex bg-gray-100 p-1 rounded-lg border border-gray-200 text-xs font-semibold">
             <button
               type="button"
-              onClick={() => setTimeRange('4Q')}
-              className={`px-3 py-1 rounded-md transition cursor-pointer ${timeRange === '4Q' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              onClick={() => setTimeRange('30D')}
+              className={`px-3 py-1 rounded-md transition cursor-pointer ${timeRange === '30D' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              4 Quarters
+              30 Days
             </button>
             <button
               type="button"
-              onClick={() => setTimeRange('8Q')}
-              className={`px-3 py-1 rounded-md transition cursor-pointer ${timeRange === '8Q' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
+              onClick={() => setTimeRange('90D')}
+              className={`px-3 py-1 rounded-md transition cursor-pointer ${timeRange === '90D' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-600 hover:text-slate-900'}`}
             >
-              8 Quarters
+              90 Days
             </button>
             <button
               type="button"
@@ -99,28 +99,24 @@ export const AnalyticsGraph: React.FC = () => {
         </div>
       </div>
 
-      {/* 1. Top KPI Summary Cards (Metric Overview) */}
+      {/* KPI summary cards calculated from API submissions */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Current Brand Valuation</span>
-            <div className="text-2xl font-bold text-slate-900 font-mono">$68.5M</div>
-            <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold rounded">
-              +28.4% YoY Growth
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Submissions</span>
+            <div className="text-2xl font-bold text-slate-900 font-mono">{filteredContents.length}</div>
+            <span className="inline-block mt-1 text-slate-500 text-[10px]">In selected period</span>
           </div>
-          <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600">
-            <DollarSign className="w-5 h-5" />
+          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600">
+            <Award className="w-5 h-5" />
           </div>
         </div>
 
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center justify-between">
           <div className="space-y-1">
             <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Average Compliance Index</span>
-            <div className="text-2xl font-bold text-slate-900 font-mono">95.2%</div>
-            <span className="inline-block mt-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-semibold rounded">
-              +7.2% vs Q1 2025
-            </span>
+            <div className="text-2xl font-bold text-slate-900 font-mono">{avgCompliance === null ? '—' : `${avgCompliance}%`}</div>
+            <span className="inline-block mt-1 text-slate-500 text-[10px]">Average from analysis reports</span>
           </div>
           <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600">
             <TrendingUp className="w-5 h-5" />
@@ -129,11 +125,9 @@ export const AnalyticsGraph: React.FC = () => {
 
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Total Risk Capital Mitigated</span>
-            <div className="text-2xl font-bold text-slate-900 font-mono">$22.4M</div>
-            <span className="inline-block mt-1 px-2 py-0.5 bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-semibold rounded">
-              Saved across 5 departments
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Flagged Findings</span>
+            <div className="text-2xl font-bold text-slate-900 font-mono">{totalFindings}</div>
+            <span className="inline-block mt-1 text-slate-500 text-[10px]">Across these submissions</span>
           </div>
           <div className="p-3 bg-emerald-50 border border-emerald-100 rounded-xl text-emerald-600">
             <ShieldCheck className="w-5 h-5" />
@@ -142,11 +136,9 @@ export const AnalyticsGraph: React.FC = () => {
 
         <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm flex items-center justify-between">
           <div className="space-y-1">
-            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Audit Pass Rate</span>
-            <div className="text-2xl font-bold text-slate-900 font-mono">94.5%</div>
-            <span className="inline-block mt-1 px-2 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-200 text-[10px] font-semibold rounded">
-              142 Audits Completed
-            </span>
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500">Approved</span>
+            <div className="text-2xl font-bold text-slate-900 font-mono">{passRate === null ? '—' : `${passRate}%`}</div>
+            <span className="inline-block mt-1 text-slate-500 text-[10px]">Share of submissions approved</span>
           </div>
           <div className="p-3 bg-indigo-50 border border-indigo-100 rounded-xl text-indigo-600">
             <Award className="w-5 h-5" />
@@ -154,22 +146,19 @@ export const AnalyticsGraph: React.FC = () => {
         </div>
       </div>
 
-      {/* 2. Main Visual Graph ("Brand Valuation ($M) vs Compliance Index (%)") */}
+      {/* Submission compliance and findings */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6 shadow-sm">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between pb-4 border-b border-gray-100">
           <div>
-            <h2 className="text-sm font-bold text-slate-900">Brand Valuation Turnout ($M) vs Compliance Index (%)</h2>
-            <p className="text-xs text-slate-500">Interactive historical composite chart tracking equity growth and governance performance.</p>
+            <h2 className="text-sm font-bold text-slate-900">Submission Compliance and Findings</h2>
+            <p className="text-xs text-slate-500">Results by submission date.</p>
           </div>
           <div className="mt-2 sm:mt-0 flex items-center space-x-4 text-xs font-medium text-slate-600">
-            <span className="flex items-center space-x-1.5">
-              <span className="w-3 h-3 bg-slate-900 rounded-sm inline-block" />
-              <span>Brand Valuation ($M)</span>
-            </span>
             <span className="flex items-center space-x-1.5">
               <span className="w-3 h-3 bg-blue-600 rounded-sm inline-block" />
               <span>Compliance Index (%)</span>
             </span>
+            <span className="flex items-center space-x-1.5"><span className="w-3 h-3 bg-rose-500 rounded-sm inline-block" /><span>Flagged findings</span></span>
           </div>
         </div>
 
@@ -186,46 +175,43 @@ export const AnalyticsGraph: React.FC = () => {
               }}
               onMouseLeave={() => setHoveredQuarter(null)}
             >
-              <CartesianGrid strokeDasharray="3 3" stroke="#E2E8F0" vertical={false} />
-              <XAxis dataKey="quarter" stroke="#64748B" fontSize={11} tickLine={false} />
-              <YAxis yAxisId="left" stroke="#0F172A" fontSize={11} tickLine={false} domain={[0, 90]} unit="M" />
-              <YAxis yAxisId="right" orientation="right" stroke="#2563EB" fontSize={11} tickLine={false} domain={[80, 100]} unit="%" />
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--chart-grid)" vertical={false} />
+              <XAxis dataKey="quarter" stroke="var(--chart-label)" fontSize={11} tickLine={false} />
+              <YAxis yAxisId="left" stroke="var(--chart-rose)" fontSize={11} tickLine={false} domain={[0, 'dataMax + 1']} />
+              <YAxis yAxisId="right" orientation="right" stroke="var(--chart-blue)" fontSize={11} tickLine={false} domain={[0, 100]} unit="%" />
               <Tooltip
                 content={({ active, payload, label }) => {
                   if (active && payload && payload.length) {
                     const data = payload[0].payload;
                     return (
-                      <div className="bg-slate-900 text-white p-3 rounded-xl shadow-xl text-xs space-y-1.5 border border-slate-800">
+                      <div className="bg-white text-slate-900 p-3 rounded-xl shadow-xl text-xs space-y-1.5 border border-gray-200">
                         <p className="font-bold border-b border-slate-800 pb-1">{label}</p>
-                        <p className="text-slate-200">Brand Valuation: <span className="font-mono font-bold text-emerald-400">${data.brandValueM}M</span></p>
-                        <p className="text-slate-200">Compliance Index: <span className="font-mono font-bold text-blue-400">{data.complianceScore}%</span></p>
-                        <p className="text-slate-200">Risk Mitigated: <span className="font-mono font-bold text-emerald-400">${data.riskMitigatedM}M</span></p>
-                        <p className="text-slate-200">Flagged Issues: <span className="font-mono font-bold text-rose-400">{data.flaggedAudits}</span></p>
+                        <p className="text-slate-800">Compliance Index: <span className="font-mono font-bold text-blue-700">{data.complianceScore}%</span></p>
+                        <p className="text-slate-800">Flagged Issues: <span className="font-mono font-bold text-rose-700">{data.flaggedAudits}</span></p>
                       </div>
                     );
                   }
                   return null;
                 }}
               />
-              <Bar yAxisId="left" dataKey="brandValueM" fill="#0F172A" radius={[6, 6, 0, 0]} barSize={36} />
-              <Line yAxisId="right" type="monotone" dataKey="complianceScore" stroke="#2563EB" strokeWidth={3} dot={{ fill: '#2563EB', r: 5 }} activeDot={{ r: 8 }} />
+              <Bar yAxisId="left" dataKey="flaggedAudits" fill="#f43f5e" radius={[6, 6, 0, 0]} barSize={24} />
+              <Line yAxisId="right" type="monotone" dataKey="complianceScore" stroke="var(--chart-blue)" strokeWidth={3} dot={{ fill: 'var(--chart-blue)', r: 5 }} activeDot={{ r: 8 }} />
             </ComposedChart>
           </ResponsiveContainer>
         </div>
+        {valuationData.length === 0 && <p className="text-center text-xs text-slate-500 pb-4">No submissions in this period yet.</p>}
       </div>
 
       {/* 3. Detailed Quarterly Breakdown Table */}
       <div className="bg-white border border-gray-200 rounded-2xl p-6 space-y-4 shadow-sm">
-        <h2 className="text-sm font-bold text-slate-900">Historical Quarterly Performance Breakdown</h2>
+        <h2 className="text-sm font-bold text-slate-900">Submission Audit History</h2>
 
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
               <tr className="border-b border-gray-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider bg-gray-50">
                 <th className="py-3 px-4">Quarter</th>
-                <th className="py-3 px-4">Brand Valuation ($M)</th>
                 <th className="py-3 px-4">Compliance Index (%)</th>
-                <th className="py-3 px-4">Risk Mitigated ($M)</th>
                 <th className="py-3 px-4">Flagged Audits</th>
                 <th className="py-3 px-4">Governance Status</th>
               </tr>
@@ -240,14 +226,12 @@ export const AnalyticsGraph: React.FC = () => {
                     onMouseEnter={() => setHoveredQuarter(item.quarter)}
                   >
                     <td className="py-3.5 px-4 font-bold text-slate-900 font-mono">{item.quarter}</td>
-                    <td className="py-3.5 px-4 font-mono font-semibold text-slate-800">${item.brandValueM}M</td>
                     <td className="py-3.5 px-4 font-mono font-semibold text-blue-600">{item.complianceScore}%</td>
-                    <td className="py-3.5 px-4 font-mono font-semibold text-emerald-600">${item.riskMitigatedM}M</td>
                     <td className="py-3.5 px-4 font-mono text-slate-700">{item.flaggedAudits}</td>
                     <td className="py-3.5 px-4">
                       <span className={`inline-block px-2.5 py-0.5 rounded text-[10px] font-semibold uppercase ${
-                        item.status === 'Master' || item.status === 'Optimal' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
-                        item.status === 'Secured' || item.status === 'Optimized' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
+                        item.status === 'Approved' ? 'bg-emerald-50 text-emerald-700 border border-emerald-200' :
+                        item.status === 'Pending Review' ? 'bg-indigo-50 text-indigo-700 border border-indigo-200' :
                         'bg-amber-50 text-amber-700 border border-amber-200'
                       }`}>
                         {item.status}
